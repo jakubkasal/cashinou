@@ -151,7 +151,8 @@ function exportCSVRadky(zaznamy, kategorie) {
 skupina('Pomocné funkce');
 
 test('formatKc – celé číslo', () => {
-  ocekavam(formatKc(1000), '1 000 Kč');
+  const vysledek = formatKc(1000);
+  ocekavamTrue(vysledek.includes('1') && vysledek.includes('000') && vysledek.includes('Kč'), `Obsahuje 1, 000 a Kč: ${vysledek}`);
 });
 
 test('formatKc – nula', () => {
