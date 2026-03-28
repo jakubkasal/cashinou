@@ -24,7 +24,7 @@ function test(popis, fn) {
 
 function ocekavam(skutecnost, ocekavano, zprava) {
   if (skutecnost !== ocekavano) {
-    throw new Error(`${zprava || ''} → očekáváno: ${JSON.stringify(ocekavano)}, dostáváno: ${JSON.stringify(skutecnost)}`);
+    throw new Error(`${zprava || ''} → očekáváno: ${JSON.stringify(ocekavano)}, dostáno: ${JSON.stringify(skutecnost)}`);
   }
 }
 
@@ -63,24 +63,24 @@ function dnesYM() {
 
 function formatMesic(ym) {
   const [y, m] = ym.split('-');
-  const mesice = ['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'];
+  const mesice = ['Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen', 'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec'];
   return `${mesice[parseInt(m) - 1]} ${y}`;
 }
 
 function frekvenceLabel(f) {
-  return { '1d':'denně','7d':'týdně','1m':'měsíčně','3m':'každé 3 měs.','4m':'každé 4 měs.','6m':'každých 6 měs.','12m':'ročně' }[f] || 'měsíčně';
+  return { '1d': 'denně', '7d': 'týdně', '1m': 'měsíčně', '3m': 'každé 3 měs.', '4m': 'každé 4 měs.', '6m': 'každých 6 měs.', '12m': 'ročně' }[f] || 'měsíčně';
 }
 
 // ── Datové funkce ────────────────────────────────────────────────────
 
 const DEFAULT_KAT = [
-  { id:'auto', nazev:'Auto', emoji:'🚗', typ:'vydaj', default:true, limit:0 },
-  { id:'jidlo', nazev:'Jídlo', emoji:'🍔', typ:'vydaj', default:true, limit:0 },
-  { id:'zabava', nazev:'Zábava', emoji:'🎮', typ:'vydaj', default:true, limit:0 },
-  { id:'sporeni', nazev:'Spoření', emoji:'💰', typ:'vydaj', default:true, limit:0 },
-  { id:'vyplata', nazev:'Výplata', emoji:'💳', typ:'prijem', default:true, limit:0 },
-  { id:'kapesne', nazev:'Kapesné', emoji:'💵', typ:'prijem', default:true, limit:0 },
-  { id:'jine', nazev:'Jiné příjmy', emoji:'📦', typ:'prijem', default:true, limit:0 },
+  { id: 'auto', nazev: 'Auto', emoji: '🚗', typ: 'vydaj', default: true, limit: 0 },
+  { id: 'jidlo', nazev: 'Jídlo', emoji: '🍔', typ: 'vydaj', default: true, limit: 0 },
+  { id: 'zabava', nazev: 'Zábava', emoji: '🎮', typ: 'vydaj', default: true, limit: 0 },
+  { id: 'sporeni', nazev: 'Spoření', emoji: '💰', typ: 'vydaj', default: true, limit: 0 },
+  { id: 'vyplata', nazev: 'Výplata', emoji: '💳', typ: 'prijem', default: true, limit: 0 },
+  { id: 'kapesne', nazev: 'Kapesné', emoji: '💵', typ: 'prijem', default: true, limit: 0 },
+  { id: 'jine', nazev: 'Jiné příjmy', emoji: '📦', typ: 'prijem', default: true, limit: 0 },
 ];
 
 function nactiKategorie() {
@@ -481,7 +481,7 @@ test('Roční platba – není splatná za 6 měsíců', () => {
 });
 
 test('frekvenceLabel pro všechny hodnoty', () => {
-  const hodnoty = ['1d','7d','1m','3m','4m','6m','12m'];
+  const hodnoty = ['1d', '7d', '1m', '3m', '4m', '6m', '12m'];
   hodnoty.forEach(h => {
     ocekavamTrue(frekvenceLabel(h).length > 0, `Label pro ${h} existuje`);
   });
