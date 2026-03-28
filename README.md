@@ -66,3 +66,9 @@ cashinou/
 
 Při vývoji této aplikace byl použit AI nástroj Claude (Anthropic) jako pomocník.
 Více informací v souboru [AGENTS.md](AGENTS.md).
+
+## Testování
+
+Automatické testy jsou dostupné v souboru `tests.html`.
+Otevři ho v prohlížeči pro spuštění testů.
+Testy pokrývají: výpočet bilance, ukládání dat, filtrování, vyhledávání, kategorie, opakující se platby, export CSV a validaci vstupů.
