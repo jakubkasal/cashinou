@@ -1565,10 +1565,11 @@
       list.innerHTML = [...zaznamy].reverse().slice(0, 10).map(z => {
         const kat = kategorie.find(k => k.id === z.kategorieId) || { emoji: '📦' };
         const sign = z.typ === 'prijem' ? '+' : '−';
-        return `<div class="record-item" style="grid-template-columns:40px 1fr auto">
+        return `<div class="record-item" style="grid-template-columns:40px 1fr auto auto">
       <span class="record-emoji">${kat.emoji}</span>
       <span class="record-desc">${z.popis}<br><span style="font-size:11px;color:var(--muted);font-weight:400">${z.datum}</span></span>
       <span class="record-amount ${z.typ === 'prijem' ? 'income' : 'expense'}">${sign}${formatKc(z.castka)}</span>
+      <button class="record-del" onclick="otevritEditZaznam(${z.id})" title="Upravit">✏️</button>
     </div>`;
       }).join('');
     }
@@ -1779,21 +1780,23 @@
       charts.pie = new Chart(document.getElementById('chart-pie'), {
         type: 'doughnut',
         data: { labels: Object.keys(soucty).map(id => { const k = kategorie.find(k => k.id === id); return k ? `${k.emoji} ${k.nazev}` : id; }), datasets: [{ data: Object.values(soucty), backgroundColor: colors, borderWidth: 0 }] },
-        options: { plugins: { legend: { labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#e8e8f0', font: { family: 'DM Sans' } } } }, cutout: '55%' }
+        options: { plugins: { legend: { labels: { color: getComputedStyle(document.body).getPropertyValue('--text').trim() || '#e8e8f0', font: { family: 'DM Sans' } } } }, cutout: '55%' }
       });
       const celkemP = zaznamy.filter(z => z.typ === 'prijem').reduce((s, z) => s + z.castka, 0);
       const celkemV = vydaje.reduce((s, z) => s + z.castka, 0);
+      const tickColor = () => getComputedStyle(document.body).getPropertyValue('--muted').trim() || '#666680';
+      const gridColor = () => getComputedStyle(document.body).getPropertyValue('--border').trim() || '#2a2a35';
       charts.bar = new Chart(document.getElementById('chart-bar'), {
         type: 'bar',
         data: { labels: ['Příjmy', 'Výdaje'], datasets: [{ data: [celkemP, celkemV], backgroundColor: ['#22c55e', '#ef4444'], borderRadius: 8, borderSkipped: false }] },
-        options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#666680', font: { family: 'DM Sans' } }, grid: { color: '#2a2a35' } }, y: { ticks: { color: '#666680', font: { family: 'DM Sans' }, callback: v => v.toLocaleString('cs') + ' Kč' }, grid: { color: '#2a2a35' } } } }
+        options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: tickColor(), font: { family: 'DM Sans' } }, grid: { color: gridColor() } }, y: { ticks: { color: tickColor(), font: { family: 'DM Sans' }, callback: v => v.toLocaleString('cs') + ' Kč' }, grid: { color: gridColor() } } } }
       });
       const ms = {}; nactiZaznamy().forEach(z => { const m = z.datum.slice(0, 7); if (!ms[m]) ms[m] = { p: 0, v: 0 }; z.typ === 'prijem' ? ms[m].p += z.castka : ms[m].v += z.castka; });
       const sorted = Object.keys(ms).sort();
       charts.line = new Chart(document.getElementById('chart-line'), {
         type: 'line',
         data: { labels: sorted.map(m => formatMesic(m)), datasets: [{ label: 'Bilance', data: sorted.map(m => ms[m].p - ms[m].v), borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,.1)', fill: true, tension: .4, pointBackgroundColor: '#6366f1', pointRadius: 4 }] },
-        options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#666680', font: { family: 'DM Sans' } }, grid: { color: '#2a2a35' } }, y: { ticks: { color: '#666680', font: { family: 'DM Sans' }, callback: v => v.toLocaleString('cs') + ' Kč' }, grid: { color: '#2a2a35' } } } }
+        options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: tickColor(), font: { family: 'DM Sans' } }, grid: { color: gridColor() } }, y: { ticks: { color: tickColor(), font: { family: 'DM Sans' }, callback: v => v.toLocaleString('cs') + ' Kč' }, grid: { color: gridColor() } } } }
       });
     }
 
