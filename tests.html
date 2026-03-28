@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CashinoU – Testy</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: #0e0e11; color: #e8e8f0; min-height: 100vh; padding: 40px 32px; }
+  h1 { font-size: 24px; font-weight: 600; margin-bottom: 6px; }
+  .subtitle { color: #666680; font-size: 14px; margin-bottom: 32px; }
+  .summary {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px;
+  }
+  .sum-card { background: #17171c; border: 1px solid #2a2a35; border-radius: 14px; padding: 20px 24px; }
+  .sum-label { font-size: 12px; color: #666680; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .sum-value { font-size: 28px; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .sum-value.green { color: #22c55e; }
+  .sum-value.red { color: #ef4444; }
+  .sum-value.blue { color: #3b82f6; }
+  .skupina { margin-bottom: 24px; }
+  .skupina-nazev {
+    font-size: 13px; font-weight: 600; color: #666680; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .skupina-count { font-size: 11px; background: #1f1f26; border-radius: 10px; padding: 2px 8px; }
+  .testy { background: #17171c; border: 1px solid #2a2a35; border-radius: 14px; overflow: hidden; }
+  .test-item {
+    display: flex; align-items: center; gap: 12px; padding: 12px 18px;
+    border-bottom: 1px solid #2a2a35; font-size: 14px;
+  }
+  .test-item:last-child { border-bottom: none; }
+  .test-item.ok { }
+  .test-item.fail { background: rgba(239,68,68,0.05); }
+  .test-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+  .test-popis { flex: 1; }
+  .test-chyba { font-size: 12px; color: #ef4444; font-family: 'DM Mono', monospace; margin-top: 3px; }
+  .progress-bar {
+    height: 6px; background: #2a2a35; border-radius: 3px; margin-bottom: 32px; overflow: hidden;
+  }
+  .progress-fill { height: 100%; border-radius: 3px; background: #22c55e; transition: width 0.5s; }
+  .progress-fill.partial { background: #f59e0b; }
+  .progress-fill.fail { background: #ef4444; }
+  .run-btn {
+    background: #6366f1; color: #fff; border: none; border-radius: 8px;
+    padding: 10px 20px; font-family: 'DM Sans', sans-serif; font-size: 14px;
+    font-weight: 600; cursor: pointer; margin-bottom: 32px;
+  }
+  .run-btn:hover { opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<h1>🧪 CashinoU – Automatické testy</h1>
+<p class="subtitle">Testování klíčových funkcí aplikace</p>
+
+<button class="run-btn" onclick="spustTesty()">▶ Spustit testy znovu</button>
+
+<div class="summary">
+  <div class="sum-card"><div class="sum-label">Celkem testů</div><div class="sum-value blue" id="sum-celkem">–</div></div>
+  <div class="sum-card"><div class="sum-label">Prošlo</div><div class="sum-value green" id="sum-ok">–</div></div>
+  <div class="sum-card"><div class="sum-label">Selhalo</div><div class="sum-value red" id="sum-fail">–</div></div>
+</div>
+
+<div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+
+<div id="vysledky"></div>
+
+<script src="tests.js"></script>
+<script>
+function spustTesty() {
+  // Reload page to re-run tests
+  location.reload();
+}
+
+window.addEventListener('load', () => {
+  const data = window.testVysledky;
+  if (!data) return;
+
+  const { vysledky, uspesne, neuspesne, celkem } = data;
+
+  document.getElementById('sum-celkem').textContent = celkem;
+  document.getElementById('sum-ok').textContent = uspesne;
+  document.getElementById('sum-fail').textContent = neuspesne;
+
+  const pct = celkem > 0 ? (uspesne / celkem) * 100 : 0;
+  const bar = document.getElementById('progress');
+  bar.style.width = pct + '%';
+  if (pct === 100) bar.className = 'progress-fill';
+  else if (pct >= 50) bar.className = 'progress-fill partial';
+  else bar.className = 'progress-fill fail';
+
+  // Seskup výsledky
+  const skupiny = {};
+  vysledky.forEach(t => {
+    if (!skupiny[t.skupina]) skupiny[t.skupina] = [];
+    skupiny[t.skupina].push(t);
+  });
+
+  const kontejner = document.getElementById('vysledky');
+  kontejner.innerHTML = Object.entries(skupiny).map(([nazev, testy]) => {
+    const ok = testy.filter(t => t.ok).length;
+    const items = testy.map(t => `
+      <div class="test-item ${t.ok ? 'ok' : 'fail'}">
+        <span class="test-icon">${t.ok ? '✅' : '❌'}</span>
+        <div class="test-popis">
+          ${t.popis}
+          ${!t.ok ? `<div class="test-chyba">${t.chyba}</div>` : ''}
+        </div>
+      </div>
+    `).join('');
+
+    return `
+      <div class="skupina">
+        <div class="skupina-nazev">
+          ${nazev}
+          <span class="skupina-count">${ok}/${testy.length}</span>
+        </div>
+        <div class="testy">${items}</div>
+      </div>
+    `;
+  }).join('');
+});
+</script>
+</body>
+</html>
