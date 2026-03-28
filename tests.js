@@ -24,7 +24,7 @@ function test(popis, fn) {
 
 function ocekavam(skutecnost, ocekavano, zprava) {
   if (skutecnost !== ocekavano) {
-    throw new Error(`${zprava || ''} → očekáváno: ${JSON.stringify(ocekavano)}, dostáváno: ${JSON.stringify(skutecnost)}`);
+    throw new Error(`${zprava || ''} → očekáváno: ${JSON.stringify(ocekavano)}, dostáno: ${JSON.stringify(skutecnost)}`);
   }
 }
 
