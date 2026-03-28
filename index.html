@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Finanční Tracker</title>
+<meta name="description" content="Osobní finanční tracker – příjmy, výdaje, grafy">
+<meta name="theme-color" content="#0e0e11">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tracker">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230e0e11'/><text y='.9em' font-size='72' x='12'>💰</text></svg>">
+<script>
+// Inline PWA manifest
+const manifest = {
+  name: 'Finanční Tracker',
+  short_name: 'Tracker',
+  description: 'Osobní finanční tracker',
+  start_url: './',
+  display: 'standalone',
+  background_color: '#0e0e11',
+  theme_color: '#0e0e11',
+  icons: [{ src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230e0e11'/><text y='.9em' font-size='72' x='12'>💰</text></svg>", sizes: '192x192', type: 'image/svg+xml' }]
+};
+const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+const link = document.createElement('link');
+link.rel = 'manifest'; link.href = URL.createObjectURL(blob);
+document.currentScript.after(link);
+</script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+  --bg: #0e0e11;
+  --surface: #17171c;
+  --surface2: #1f1f26;
+  --border: #2a2a35;
+  --text: #e8e8f0;
+  --muted: #666680;
+  --green: #22c55e;
+  --red: #ef4444;
+  --blue: #3b82f6;
+  --accent: #6366f1;
+  --yellow: #f59e0b;
+}
+body.light {
+  --bg: #f5f5f8;
+  --surface: #ffffff;
+  --surface2: #f0f0f5;
+  --border: #e2e2ec;
+  --text: #111118;
+  --muted: #888899;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; transition: background 0.2s, color 0.2s; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 220px; min-height: 100vh;
+  background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; padding: 28px 16px;
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+  transition: background 0.2s;
+}
+.logo { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; padding: 0 8px 32px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.nav-btn {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-radius: 8px; border: none; background: transparent; color: var(--muted);
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+  cursor: pointer; width: 100%; text-align: left; transition: all 0.15s; margin-bottom: 2px;
+}
+.nav-btn:hover { background: var(--surface2); color: var(--text); }
+.nav-btn.active { background: var(--surface2); color: var(--text); }
+.nav-btn .icon { font-size: 16px; width: 20px; text-align: center; }
+.sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 2px; }
+.nav-btn.danger { color: var(--red); }
+.nav-btn.danger:hover { background: rgba(239,68,68,0.1); }
+
+/* ── Main ── */
+.main { margin-left: 220px; flex: 1; padding: 40px 48px; max-width: calc(100vw - 220px); min-height: 100vh; }
+.page { display: none; }
+.page.active { display: block; }
+h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.5px; margin-bottom: 8px; }
+.page-subtitle { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+
+/* ── Cards ── */
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 36px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; transition: background 0.2s; }
+.card-label { font-size: 12px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.card-value { font-size: 24px; font-weight: 600; font-family: 'DM Mono', monospace; letter-spacing: -0.5px; }
+.card-value.green { color: var(--green); }
+.card-value.red { color: var(--red); }
+.card-value.blue { color: var(--blue); }
+
+/* ── Section title + filter row ── */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.section-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ── Filter bar ── */
+.filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+.filter-bar select, .filter-bar input {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px;
+  padding: 8px 12px; outline: none; cursor: pointer;
+}
+.filter-bar input { min-width: 200px; }
+.filter-bar select:focus, .filter-bar input:focus { border-color: var(--accent); }
+.filter-bar select option { background: var(--surface2); }
+.filter-clear { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 8px 4px; }
+.filter-clear:hover { color: var(--red); }
+
+/* ── Records ── */
+.records-list { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; transition: background 0.2s; }
+.record-item {
+  display: grid; grid-template-columns: 100px 40px 120px 1fr auto auto;
+  align-items: center; gap: 12px; padding: 14px 20px;
+  border-bottom: 1px solid var(--border); font-size: 14px; transition: background 0.1s;
+}
+.record-item:last-child { border-bottom: none; }
+.record-item:hover { background: var(--surface2); }
+.record-date { color: var(--muted); font-family: 'DM Mono', monospace; font-size: 12px; }
+.record-emoji { font-size: 18px; text-align: center; }
+.record-cat { color: var(--muted); font-size: 13px; }
+.record-desc { font-weight: 500; }
+.record-amount { font-family: 'DM Mono', monospace; font-weight: 600; text-align: right; white-space: nowrap; }
+.record-amount.income { color: var(--green); }
+.record-amount.expense { color: var(--red); }
+.record-del { background: none; border: none; color: transparent; cursor: pointer; font-size: 14px; padding: 4px; border-radius: 4px; transition: all 0.1s; }
+.record-item:hover .record-del { color: var(--muted); }
+.record-del:hover { color: var(--red) !important; background: rgba(239,68,68,0.1); }
+.empty-state { padding: 48px; text-align: center; color: var(--muted); font-size: 14px; }
+
+/* ── Budget warnings ── */
+.budget-alerts { margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
+.alert-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);
+  border-radius: 10px; font-size: 13px;
+}
+.alert-item.over { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); }
+.alert-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.alert-bar { height: 100%; border-radius: 3px; background: var(--yellow); transition: width 0.3s; }
+.alert-bar.over { background: var(--red); }
+
+/* ── Stats strip ── */
+.stats-strip { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; }
+.stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+.stat-value { font-size: 15px; font-weight: 600; }
+.stat-value .stat-emoji { margin-right: 6px; }
+
+/* ── Form ── */
+.form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 32px; max-width: 520px; transition: background 0.2s; }
+.form-group { margin-bottom: 20px; }
+label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 7px; text-transform: uppercase; letter-spacing: 0.4px; }
+input, select {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif;
+  font-size: 14px; padding: 11px 14px; outline: none; transition: border-color 0.15s;
+}
+input:focus, select:focus { border-color: var(--accent); }
+select option { background: var(--surface2); }
+.type-toggle { display: flex; gap: 8px; margin-bottom: 20px; }
+.type-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+.type-btn.active-expense { background: rgba(239,68,68,0.15); border-color: var(--red); color: var(--red); }
+.type-btn.active-income { background: rgba(34,197,94,0.15); border-color: var(--green); color: var(--green); }
+.btn { width: 100%; padding: 13px; border-radius: 8px; border: none; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); margin-top: 8px; }
+.btn-danger { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); margin-top: 8px; }
+.status-msg { text-align: center; font-size: 13px; min-height: 20px; margin-bottom: 12px; font-weight: 500; }
+.status-msg.ok { color: var(--green); }
+.status-msg.err { color: var(--red); }
+.row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* ── Recurring badge ── */
+.badge { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px; vertical-align: middle; }
+.badge-recur { background: rgba(99,102,241,0.2); color: var(--accent); }
+
+/* ── Kategorie ── */
+.kategorie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 32px; }
+.kat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; display: flex; align-items: center; gap: 12px; position: relative; transition: background 0.2s; }
+.kat-emoji { font-size: 22px; }
+.kat-info { flex: 1; min-width: 0; }
+.kat-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kat-type { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.kat-budget { font-size: 11px; color: var(--accent); margin-top: 2px; }
+.kat-delete { position: absolute; top: 8px; right: 8px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 4px; opacity: 0; transition: opacity 0.15s; }
+.kat-card:hover .kat-delete { opacity: 1; }
+.kat-delete:hover { color: var(--red); }
+.kat-default-badge { font-size: 10px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; margin-left: auto; }
+
+/* ── Emoji picker ── */
+.emoji-picker { display: flex; flex-wrap: wrap; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; max-height: 150px; overflow-y: auto; }
+.emoji-opt { font-size: 20px; cursor: pointer; padding: 4px 6px; border-radius: 6px; border: 1px solid transparent; transition: all 0.1s; }
+.emoji-opt:hover, .emoji-opt.selected { background: var(--border); border-color: var(--accent); }
+
+/* ── Charts ── */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; transition: background 0.2s; }
+.chart-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 20px; }
+.chart-card.full { grid-column: 1 / -1; }
+
+/* ── Month filter tabs ── */
+.month-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 24px; }
+.month-tab { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+.month-tab:hover { background: var(--surface2); color: var(--text); }
+.month-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── Export / Import ── */
+.tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 600px; }
+.tool-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; }
+.tool-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.tool-card p { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
+
+/* ── Inline nová kategorie ── */
+.kat-inline-toggle {
+  display: flex; align-items: center; gap: 8px; margin-top: -8px; margin-bottom: 20px;
+}
+.kat-inline-btn {
+  background: none; border: 1px dashed var(--border); border-radius: 7px;
+  color: var(--accent); font-family: 'DM Sans', sans-serif; font-size: 13px;
+  font-weight: 500; padding: 6px 12px; cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; gap: 5px;
+}
+.kat-inline-btn:hover { background: rgba(99,102,241,0.08); border-color: var(--accent); }
+.kat-inline-panel {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px; margin-bottom: 20px; display: none; flex-direction: column; gap: 12px;
+}
+.kat-inline-panel.open { display: flex; }
+.kat-inline-panel .row-3 { display: grid; grid-template-columns: 1fr 80px auto; gap: 10px; align-items: end; }
+.kat-inline-panel label { font-size: 11px; }
+.kat-inline-panel input { padding: 8px 10px; font-size: 13px; }
+.kat-inline-emoji-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.kat-inline-emoji-opt {
+  font-size: 18px; cursor: pointer; padding: 3px 5px; border-radius: 5px;
+  border: 1px solid transparent; transition: all 0.1s;
+}
+.kat-inline-emoji-opt:hover, .kat-inline-emoji-opt.sel { background: var(--border); border-color: var(--accent); }
+.btn-inline-save {
+  padding: 8px 14px; border-radius: 7px; border: none; background: var(--accent);
+  color: #fff; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: opacity 0.15s; align-self: flex-end;
+}
+.btn-inline-save:hover { opacity: 0.85; }
+.btn-inline-cancel {
+  padding: 8px 10px; border-radius: 7px; border: 1px solid var(--border);
+  background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif;
+  font-size: 13px; cursor: pointer; transition: all 0.15s; align-self: flex-end;
+}
+.btn-inline-cancel:hover { color: var(--red); border-color: var(--red); }
+
+/* ── Modal ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 200; align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 28px; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.4);
+}
+.modal h2 { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+.modal-footer { display: flex; gap: 8px; margin-top: 8px; }
+.modal-footer .btn { flex: 1; }
+
+/* ── Responsive ── */
+/* ── Mobile bottom nav ── */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; padding: 20px 16px 90px; max-width: 100%; }
+
+  /* Spodní navigace */
+  .bottom-nav {
+    display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    z-index: 100; padding-bottom: env(safe-area-inset-bottom);
+  }
+  .bottom-nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 10px 4px; border: none; background: transparent;
+    color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 10px;
+    font-weight: 500; cursor: pointer; gap: 4px; transition: color 0.15s;
+  }
+  .bottom-nav-btn .icon { font-size: 20px; }
+  .bottom-nav-btn.active { color: var(--accent); }
+  .bottom-nav-btn.add-btn {
+    color: #fff;
+  }
+  .bottom-nav-btn.add-btn .icon-wrap {
+    background: var(--accent); border-radius: 50%; width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+    margin-bottom: -4px;
+  }
+
+  /* Mobilní přehled */
+  .mobile-hero {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 24px 20px; margin-bottom: 20px; text-align: center;
+  }
+  .mobile-hero-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .mobile-hero-value { font-size: 40px; font-weight: 600; font-family: 'DM Mono', monospace; letter-spacing: -1px; }
+  .mobile-hero-value.green { color: var(--green); }
+  .mobile-hero-value.red { color: var(--red); }
+  .mobile-mini-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .mobile-mini-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .mobile-mini-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+  .mobile-mini-value { font-size: 18px; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .mobile-mini-value.green { color: var(--green); }
+  .mobile-mini-value.red { color: var(--red); }
+
+  /* Mobilní koláčový graf */
+  .mobile-chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+  .mobile-chart-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 16px; }
+
+  /* Velké přidávací tlačítko */
+  .mobile-add-btn {
+    width: 100%; padding: 18px; border-radius: 14px; border: none;
+    background: var(--accent); color: #fff; font-family: 'DM Sans', sans-serif;
+    font-size: 17px; font-weight: 600; cursor: pointer; margin-bottom: 24px;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    box-shadow: 0 4px 20px rgba(99,102,241,0.35);
+  }
+
+  .cards { grid-template-columns: 1fr; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .record-item { grid-template-columns: 40px 1fr auto auto; }
+  .record-date, .record-cat { display: none; }
+  .tools-grid { grid-template-columns: 1fr; }
+  .stats-strip { grid-template-columns: 1fr; }
+  .row-2 { grid-template-columns: 1fr; }
+  h1 { font-size: 22px; }
+
+  /* Skryj desktop přehled na mobilu, zobraz mobilní */
+  .desktop-only { display: none !important; }
+  .mobile-only { display: block !important; }
+}
+
+@media (min-width: 769px) {
+  .bottom-nav { display: none; }
+  .mobile-only { display: none !important; }
+  .desktop-only { display: block !important; }
+}
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="logo"><span>💰</span><span class="logo-text">Tracker</span></div>
+  <button class="nav-btn active" onclick="showPage('prehled',this)"><span class="icon">📊</span><span>Přehled</span></button>
+  <button class="nav-btn" onclick="showPage('pridat',this)"><span class="icon">➕</span><span>Přidat</span></button>
+  <button class="nav-btn" onclick="showPage('opakujici',this)"><span class="icon">🔁</span><span>Opakující se</span></button>
+  <button class="nav-btn" onclick="showPage('grafy',this)"><span class="icon">📈</span><span>Grafy</span></button>
+  <button class="nav-btn" onclick="showPage('kategorie',this)"><span class="icon">🏷️</span><span>Kategorie</span></button>
+  <button class="nav-btn" onclick="showPage('nastroje',this)"><span class="icon">🔧</span><span>Nástroje</span></button>
+  <div class="sidebar-bottom">
+    <button class="nav-btn" onclick="toggleTheme(this)"><span class="icon" id="theme-icon">☀️</span><span>Světlý režim</span></button>
+    <button class="nav-btn danger" onclick="smazatVse()"><span class="icon">🗑️</span><span>Smazat vše</span></button>
+  </div>
+</nav>
+
+<!-- Spodní navigace (jen mobil) -->
+<nav class="bottom-nav">
+  <button class="bottom-nav-btn active" id="bnav-prehled" onclick="showPage('prehled',this,'bnav-prehled')">
+    <span class="icon">📊</span><span>Přehled</span>
+  </button>
+  <button class="bottom-nav-btn" id="bnav-grafy" onclick="showPage('grafy',this,'bnav-grafy')">
+    <span class="icon">📈</span><span>Grafy</span>
+  </button>
+  <button class="bottom-nav-btn add-btn" id="bnav-pridat" onclick="showPage('pridat',this,'bnav-pridat')">
+    <div class="icon-wrap">＋</div><span>Přidat</span>
+  </button>
+  <button class="bottom-nav-btn" id="bnav-opakujici" onclick="showPage('opakujici',this,'bnav-opakujici')">
+    <span class="icon">🔁</span><span>Platby</span>
+  </button>
+  <button class="bottom-nav-btn" id="bnav-kategorie" onclick="showPage('kategorie',this,'bnav-kategorie')">
+    <span class="icon">🏷️</span><span>Více</span>
+  </button>
+</nav>
+
+<main class="main">
+
+  <!-- ── PŘEHLED ── -->
+  <div id="page-prehled" class="page active">
+
+    <!-- Mobilní layout -->
+    <div class="mobile-only">
+      <div class="mobile-hero">
+        <div class="mobile-hero-label">Bilance</div>
+        <div class="mobile-hero-value green" id="mob-bilance">0 Kč</div>
+      </div>
+      <div class="mobile-mini-cards">
+        <div class="mobile-mini-card"><div class="mobile-mini-label">Příjmy</div><div class="mobile-mini-value green" id="mob-prijmy">0 Kč</div></div>
+        <div class="mobile-mini-card"><div class="mobile-mini-label">Výdaje</div><div class="mobile-mini-value red" id="mob-vydaje">0 Kč</div></div>
+      </div>
+      <button class="mobile-add-btn" onclick="showPage('pridat', document.getElementById('bnav-pridat'), 'bnav-pridat')">＋ Přidat záznam</button>
+      <div class="mobile-chart-card">
+        <div class="mobile-chart-title">Výdaje podle kategorií</div>
+        <canvas id="mob-chart-pie"></canvas>
+      </div>
+      <div class="section-title" style="margin-bottom:12px;">Poslední záznamy</div>
+      <div class="records-list" id="mob-zaznamy-list"></div>
+    </div>
+
+    <!-- Desktop layout -->
+    <div class="desktop-only">
+      <h1>Přehled</h1>
+      <p class="page-subtitle" id="prehled-subtitle"></p>
+      <div class="month-tabs" id="prehled-tabs"></div>
+      <div class="cards">
+        <div class="card"><div class="card-label">Příjmy</div><div class="card-value green" id="karta-prijmy">0 Kč</div></div>
+        <div class="card"><div class="card-label">Výdaje</div><div class="card-value red" id="karta-vydaje">0 Kč</div></div>
+        <div class="card"><div class="card-label">Bilance</div><div class="card-value blue" id="karta-bilance">0 Kč</div></div>
+      </div>
+      <div id="budget-alerts"></div>
+      <div class="stats-strip" id="stats-strip"></div>
+      <div class="section-header">
+        <span class="section-title">Záznamy</span>
+        <button class="btn-inline-save" style="padding:7px 14px;font-size:13px;" onclick="showPage('pridat', document.querySelectorAll('.nav-btn')[1])">＋ Přidat záznam</button>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="search-input" placeholder="🔍 Hledat..." oninput="renderPrehled()">
+        <select id="filter-kat" onchange="renderPrehled()"><option value="">Všechny kategorie</option></select>
+        <button class="filter-clear" onclick="clearFilter()">✕ Zrušit filtr</button>
+      </div>
+      <div class="records-list" id="zaznamy-list"></div>
+    </div>
+
+  </div>
+
+  <!-- ── PŘIDAT ── -->
+  <div id="page-pridat" class="page">
+    <h1>Přidat záznam</h1>
+    <p class="page-subtitle">Ručně zadej příjem nebo výdaj</p>
+    <div class="form-card">
+      <div class="type-toggle">
+        <button class="type-btn active-expense" id="btn-vydaj" onclick="setTyp('vydaj')">− Výdaj</button>
+        <button class="type-btn" id="btn-prijem" onclick="setTyp('prijem')">+ Příjem</button>
+      </div>
+      <div class="form-group">
+        <label>Kategorie</label>
+        <select id="form-kategorie"></select>
+      </div>
+      <div class="kat-inline-toggle">
+        <button class="kat-inline-btn" onclick="toggleInlineKat()">＋ nová kategorie</button>
+      </div>
+      <div class="kat-inline-panel" id="inline-kat-panel">
+        <div class="kat-inline-emoji-row" id="inline-emoji-row"></div>
+        <div class="row-3">
+          <div><label>Název</label><input type="text" id="inline-kat-nazev" placeholder="např. Zdraví..."></div>
+          <div><label>Limit Kč</label><input type="number" id="inline-kat-limit" placeholder="0" min="0"></div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-inline-save" onclick="ulozInlineKat()">Přidat</button>
+            <button class="btn-inline-cancel" onclick="toggleInlineKat()">✕</button>
+          </div>
+        </div>
+        <div class="status-msg" id="inline-kat-status" style="text-align:left;margin:0;min-height:16px;"></div>
+      </div>
+      <div class="row-2">
+        <div class="form-group">
+          <label>Popis</label>
+          <input type="text" id="form-popis" placeholder="např. Benzín...">
+        </div>
+        <div class="form-group">
+          <label>Částka (Kč)</label>
+          <input type="number" id="form-castka" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Datum</label>
+        <input type="date" id="form-datum">
+      </div>
+      <div class="status-msg" id="form-status"></div>
+      <button class="btn btn-primary" onclick="ulozZaznam()">Uložit záznam</button>
+    </div>
+  </div>
+
+  <!-- ── OPAKUJÍCÍ SE ── -->
+  <div id="page-opakujici" class="page">
+    <h1>Opakující se platby</h1>
+    <p class="page-subtitle">Nastavíš jednou, přidávej jedním kliknutím když je čas</p>
+    <div class="form-card" style="margin-bottom:28px;">
+      <div class="type-toggle">
+        <button class="type-btn active-expense" id="btn-rec-vydaj" onclick="setRecTyp('vydaj')">− Výdaj</button>
+        <button class="type-btn" id="btn-rec-prijem" onclick="setRecTyp('prijem')">+ Příjem</button>
+      </div>
+      <div class="form-group">
+        <label>Kategorie</label>
+        <select id="rec-kategorie"></select>
+      </div>
+      <div class="row-2">
+        <div class="form-group">
+          <label>Popis</label>
+          <input type="text" id="rec-popis" placeholder="např. Nájem, Netflix...">
+        </div>
+        <div class="form-group">
+          <label>Částka (Kč)</label>
+          <input type="number" id="rec-castka" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Frekvence</label>
+        <select id="rec-frekvence">
+          <option value="1d">Denně</option>
+          <option value="7d">Týdně</option>
+          <option value="1m" selected>Měsíčně</option>
+          <option value="3m">Každé 3 měsíce</option>
+          <option value="4m">Každé 4 měsíce</option>
+          <option value="6m">Každých 6 měsíců</option>
+          <option value="12m">Ročně</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Datum první platby</label>
+        <input type="date" id="rec-datum">
+      </div>
+      <div class="status-msg" id="rec-status"></div>
+      <button class="btn btn-primary" onclick="pridatOpakujici()">Přidat opakující se platbu</button>
+    </div>
+    <div class="section-title" style="margin-bottom:12px;">Nastavené platby</div>
+    <div id="rec-list"></div>
+    <div style="margin-top:16px;">
+      <button class="btn btn-secondary" style="max-width:340px;" onclick="aplikujOpakujici()">▶ Přidat splatné platby k dnešnímu datu</button>
+    </div>
+    <div class="status-msg" id="rec-apply-status" style="text-align:left;margin-top:8px;"></div>
+  </div>
+
+  <!-- ── GRAFY ── -->
+  <div id="page-grafy" class="page">
+    <h1>Grafy</h1>
+    <p class="page-subtitle" id="grafy-subtitle"></p>
+    <div class="month-tabs" id="grafy-tabs"></div>
+    <div class="charts-grid">
+      <div class="chart-card"><div class="chart-title">Výdaje podle kategorií</div><canvas id="chart-pie"></canvas></div>
+      <div class="chart-card"><div class="chart-title">Příjmy vs Výdaje</div><canvas id="chart-bar"></canvas></div>
+      <div class="chart-card full"><div class="chart-title">Vývoj bilance v čase (měsíčně)</div><canvas id="chart-line"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── KATEGORIE ── -->
+  <div id="page-kategorie" class="page">
+    <h1>Kategorie</h1>
+    <p class="page-subtitle">Spravuj kategorie a nastav měsíční limity</p>
+    <div id="kat-list"></div>
+    <div class="section-title" style="margin-bottom:12px;">Přidat novou kategorii</div>
+    <div class="form-card">
+      <div class="type-toggle">
+        <button class="type-btn active-expense" id="btn-kat-vydaj" onclick="setKatTyp('vydaj')">Výdaj</button>
+        <button class="type-btn" id="btn-kat-prijem" onclick="setKatTyp('prijem')">Příjem</button>
+      </div>
+      <div class="form-group">
+        <label>Název kategorie</label>
+        <input type="text" id="kat-nazev" placeholder="např. Zdraví, Oblečení...">
+      </div>
+      <div class="form-group">
+        <label>Měsíční limit (Kč) – nepovinné</label>
+        <input type="number" id="kat-limit" placeholder="0 = bez limitu" min="0">
+      </div>
+      <div class="form-group">
+        <label>Ikonka</label>
+        <div class="emoji-picker" id="emoji-picker"></div>
+        <input type="hidden" id="kat-emoji" value="📦">
+      </div>
+      <div class="status-msg" id="kat-status"></div>
+      <button class="btn btn-primary" onclick="pridatKategorii()">Přidat kategorii</button>
+    </div>
+  </div>
+
+  <!-- ── NÁSTROJE ── -->
+  <div id="page-nastroje" class="page">
+    <h1>Nástroje</h1>
+    <p class="page-subtitle">Export, import a správa dat</p>
+    <div class="tools-grid">
+      <div class="tool-card">
+        <h3>📤 Export CSV</h3>
+        <p>Stáhni všechny záznamy jako tabulku, kterou otevřeš v Excelu nebo Google Sheets.</p>
+        <button class="btn btn-primary" onclick="exportCSV()">Stáhnout CSV</button>
+      </div>
+      <div class="tool-card">
+        <h3>📥 Import CSV</h3>
+        <p>Nahraj CSV soubor z banky nebo z předchozího exportu. Formát: datum, typ, kategorie, popis, castka.</p>
+        <input type="file" id="csv-import" accept=".csv" onchange="importCSV(event)" style="display:none">
+        <button class="btn btn-primary" onclick="document.getElementById('csv-import').click()">Nahrát CSV</button>
+        <div class="status-msg" id="import-status" style="text-align:left;margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════════
+
+const EMOJIS = ['🚗','⛽','🔧','🍔','🍕','☕','🛒','🎮','🎬','🎵','💪','✈️','🏠','💊','👕','📚','🐾','🌱','💡','📱','💰','💳','🎁','🏦','📦','🚌','🍺','🍷','🎂','🏋️','⚽','🎯','🛍️','💻','🖨️','🔑','🧴','🧹','🌊','🎸'];
+
+const DEFAULT_KAT = [
+  { id:'auto', nazev:'Auto', emoji:'🚗', typ:'vydaj', default:true, limit:0 },
+  { id:'jidlo', nazev:'Jídlo', emoji:'🍔', typ:'vydaj', default:true, limit:0 },
+  { id:'zabava', nazev:'Zábava', emoji:'🎮', typ:'vydaj', default:true, limit:0 },
+  { id:'sporeni', nazev:'Spoření', emoji:'💰', typ:'vydaj', default:true, limit:0 },
+  { id:'vyplata', nazev:'Výplata', emoji:'💳', typ:'prijem', default:true, limit:0 },
+  { id:'kapesne', nazev:'Kapesné', emoji:'💵', typ:'prijem', default:true, limit:0 },
+  { id:'jine', nazev:'Jiné příjmy', emoji:'📦', typ:'prijem', default:true, limit:0 },
+];
+
+const nactiKategorie = () => { try { return JSON.parse(localStorage.getItem('kategorie')) || initKat(); } catch { return initKat(); } };
+function initKat() { localStorage.setItem('kategorie', JSON.stringify(DEFAULT_KAT)); return DEFAULT_KAT; }
+const ulozKategorie = k => localStorage.setItem('kategorie', JSON.stringify(k));
+
+const nactiZaznamy = () => { try { return JSON.parse(localStorage.getItem('zaznamy')) || []; } catch { return []; } };
+const ulozZaznamy = z => localStorage.setItem('zaznamy', JSON.stringify(z));
+
+const nactiOpakujici = () => { try { return JSON.parse(localStorage.getItem('opakujici')) || []; } catch { return []; } };
+const ulozOpakujici = o => localStorage.setItem('opakujici', JSON.stringify(o));
+
+// ═══════════════════════════════════════════════════════════════════
+// NAVIGACE
+// ═══════════════════════════════════════════════════════════════════
+
+let aktivniMesicPrehled = null;
+let aktivniMesicGrafy = null;
+
+function showPage(page, btn, bnavId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (page === 'prehled') { buildMesiceTabs('prehled'); renderPrehled(); renderMobilePrehled(); }
+  if (page === 'pridat') { initFormDatum(); renderFormKategorie(); }
+  if (page === 'opakujici') { renderOpakujici(); renderRecKategorie(); }
+  if (page === 'grafy') { buildMesiceTabs('grafy'); renderGrafy(); }
+  if (page === 'kategorie') renderKategorie();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MĚSÍČNÍ TABS
+// ═══════════════════════════════════════════════════════════════════
+
+function getMesice() {
+  const zaznamy = nactiZaznamy();
+  const mesice = new Set(zaznamy.map(z => z.datum.slice(0,7)));
+  return ['vše', ...Array.from(mesice).sort().reverse()];
+}
+
+function buildMesiceTabs(kde) {
+  const mesice = getMesice();
+  const kontejner = document.getElementById(kde + '-tabs');
+  const aktivni = kde === 'prehled' ? aktivniMesicPrehled : aktivniMesicGrafy;
+  kontejner.innerHTML = mesice.map(m => {
+    const label = m === 'vše' ? 'Vše' : formatMesic(m);
+    const isActive = (aktivni === null && m === 'vše') || aktivni === m;
+    return `<button class="month-tab${isActive ? ' active' : ''}" onclick="setMesic('${kde}','${m}',this)">${label}</button>`;
+  }).join('');
+}
+
+function setMesic(kde, m, btn) {
+  if (kde === 'prehled') aktivniMesicPrehled = m === 'vše' ? null : m;
+  else aktivniMesicGrafy = m === 'vše' ? null : m;
+  document.querySelectorAll(`#${kde}-tabs .month-tab`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (kde === 'prehled') renderPrehled();
+  else renderGrafy();
+}
+
+function filteredZaznamy(mesic) {
+  const z = nactiZaznamy();
+  if (!mesic) return z;
+  return z.filter(z => z.datum.startsWith(mesic));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PŘEHLED
+// ═══════════════════════════════════════════════════════════════════
+
+function renderPrehled() {
+  const mesic = aktivniMesicPrehled;
+  let zaznamy = filteredZaznamy(mesic);
+
+  // Search
+  const q = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const katFilter = document.getElementById('filter-kat')?.value || '';
+  if (q) zaznamy = zaznamy.filter(z => z.popis.toLowerCase().includes(q) || z.kategorieId.includes(q));
+  if (katFilter) zaznamy = zaznamy.filter(z => z.kategorieId === katFilter);
+
+  const prijmy = zaznamy.filter(z => z.typ === 'prijem').reduce((s,z) => s+z.castka, 0);
+  const vydaje = zaznamy.filter(z => z.typ === 'vydaj').reduce((s,z) => s+z.castka, 0);
+  const bilance = prijmy - vydaje;
+
+  document.getElementById('prehled-subtitle').textContent = mesic ? `Zobrazeno: ${formatMesic(mesic)}` : 'Celkový přehled';
+  document.getElementById('karta-prijmy').textContent = formatKc(prijmy);
+  document.getElementById('karta-vydaje').textContent = formatKc(vydaje);
+  const bil = document.getElementById('karta-bilance');
+  bil.textContent = formatKc(bilance);
+  bil.className = 'card-value ' + (bilance >= 0 ? 'green' : 'red');
+
+  // Filter kategorie select
+  const kategorie = nactiKategorie();
+  const sel = document.getElementById('filter-kat');
+  if (sel) {
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Všechny kategorie</option>' +
+      kategorie.map(k => `<option value="${k.id}"${k.id===cur?' selected':''}>${k.emoji} ${k.nazev}</option>`).join('');
+  }
+
+  // Budget alerts (vždy aktuální měsíc)
+  renderBudgetAlerts(mesic || dnesYM());
+
+  // Statistiky
+  renderStats(zaznamy, kategorie);
+
+  // Záznamy
+  const list = document.getElementById('zaznamy-list');
+  if (!zaznamy.length) {
+    list.innerHTML = '<div class="empty-state">Žádné záznamy.<br>Přidej první přes ➕ Přidat.</div>';
+    return;
+  }
+  list.innerHTML = [...zaznamy].reverse().slice(0, 50).map(z => {
+    const kat = kategorie.find(k => k.id === z.kategorieId) || { emoji:'📦', nazev: z.kategorieId };
+    const sign = z.typ === 'prijem' ? '+' : '−';
+    const cls = z.typ === 'prijem' ? 'income' : 'expense';
+    const recBadge = z.recuring ? '<span class="badge badge-recur">🔁</span>' : '';
+    return `<div class="record-item">
+      <span class="record-date">${z.datum}</span>
+      <span class="record-emoji">${kat.emoji}</span>
+      <span class="record-cat">${kat.nazev}</span>
+      <span class="record-desc">${z.popis}${recBadge}</span>
+      <span class="record-amount ${cls}">${sign}${formatKc(z.castka)}</span>
+      <button class="record-del" onclick="otevritEditZaznam(${z.id})" title="Upravit">✏️</button>
+    </div>`;
+  }).join('');
+}
+
+let mobChartPie = null;
+
+function renderMobilePrehled() {
+  const zaznamy = nactiZaznamy();
+  const kategorie = nactiKategorie();
+  const prijmy = zaznamy.filter(z => z.typ==='prijem').reduce((s,z) => s+z.castka, 0);
+  const vydaje = zaznamy.filter(z => z.typ==='vydaj').reduce((s,z) => s+z.castka, 0);
+  const bilance = prijmy - vydaje;
+
+  const mobBil = document.getElementById('mob-bilance');
+  if (mobBil) {
+    mobBil.textContent = formatKc(bilance);
+    mobBil.className = 'mobile-hero-value ' + (bilance >= 0 ? 'green' : 'red');
+    document.getElementById('mob-prijmy').textContent = formatKc(prijmy);
+    document.getElementById('mob-vydaje').textContent = formatKc(vydaje);
+  }
+
+  // Koláčový graf
+  const canvas = document.getElementById('mob-chart-pie');
+  if (!canvas) return;
+  const vydajeList = zaznamy.filter(z => z.typ==='vydaj');
+  const soucty = {};
+  vydajeList.forEach(z => { soucty[z.kategorieId] = (soucty[z.kategorieId]||0)+z.castka; });
+  const pieLabels = Object.keys(soucty).map(id => { const k=kategorie.find(k=>k.id===id); return k?`${k.emoji} ${k.nazev}`:id; });
+  const pieColors = ['#3b82f6','#22c55e','#f59e0b','#a855f7','#ef4444','#06b6d4','#ec4899','#84cc16'];
+
+  if (mobChartPie) { try { mobChartPie.destroy(); } catch {} }
+  if (Object.keys(soucty).length === 0) {
+    canvas.style.display = 'none';
+    return;
+  }
+  canvas.style.display = '';
+  mobChartPie = new Chart(canvas, {
+    type: 'doughnut',
+    data: { labels: pieLabels, datasets: [{ data: Object.values(soucty), backgroundColor: pieColors, borderWidth: 0 }] },
+    options: {
+      plugins: { legend: { position: 'bottom', labels: { color: '#e8e8f0', font: { family: 'DM Sans', size: 12 }, padding: 12 } } },
+      cutout: '50%'
+    }
+  });
+
+  // Poslední záznamy
+  const list = document.getElementById('mob-zaznamy-list');
+  if (!list) return;
+  if (!zaznamy.length) { list.innerHTML='<div class="empty-state">Zatím žádné záznamy.</div>'; return; }
+  list.innerHTML = [...zaznamy].reverse().slice(0, 10).map(z => {
+    const kat = kategorie.find(k => k.id === z.kategorieId) || { emoji:'📦', nazev: z.kategorieId };
+    const sign = z.typ==='prijem' ? '+' : '−';
+    const cls = z.typ==='prijem' ? 'income' : 'expense';
+    return `<div class="record-item" style="grid-template-columns:40px 1fr auto;">
+      <span class="record-emoji">${kat.emoji}</span>
+      <span class="record-desc">${z.popis}<br><span style="font-size:11px;color:var(--muted);font-weight:400">${z.datum}</span></span>
+      <span class="record-amount ${cls}">${sign}${formatKc(z.castka)}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderStats(zaznamy, kategorie) {
+  const vydaje = zaznamy.filter(z => z.typ === 'vydaj');
+  if (!vydaje.length) { document.getElementById('stats-strip').innerHTML = ''; return; }
+
+  // Největší výdaj
+  const max = vydaje.reduce((a,b) => b.castka > a.castka ? b : a);
+  const maxKat = kategorie.find(k => k.id === max.kategorieId) || { emoji:'📦' };
+
+  // Nejčastější kategorie
+  const freq = {};
+  vydaje.forEach(z => freq[z.kategorieId] = (freq[z.kategorieId]||0)+1);
+  const topKatId = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0];
+  const topKat = kategorie.find(k => k.id === topKatId) || { emoji:'📦', nazev: topKatId };
+
+  document.getElementById('stats-strip').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-label">Největší výdaj</div>
+      <div class="stat-value"><span class="stat-emoji">${maxKat.emoji}</span>${max.popis} — ${formatKc(max.castka)}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Nejčastější kategorie výdajů</div>
+      <div class="stat-value"><span class="stat-emoji">${topKat.emoji}</span>${topKat.nazev} (${freq[topKatId]}×)</div>
+    </div>`;
+}
+
+function renderBudgetAlerts(mesic) {
+  const zaznamy = nactiZaznamy().filter(z => z.datum.startsWith(mesic) && z.typ === 'vydaj');
+  const kategorie = nactiKategorie().filter(k => k.limit > 0);
+  const wrap = document.getElementById('budget-alerts');
+  if (!kategorie.length) { wrap.innerHTML = ''; return; }
+
+  const items = kategorie.map(k => {
+    const spent = zaznamy.filter(z => z.kategorieId === k.id).reduce((s,z) => s+z.castka, 0);
+    const pct = Math.min((spent / k.limit) * 100, 100);
+    const over = spent > k.limit;
+    if (pct < 50) return '';
+    return `<div class="alert-item${over?' over':''}">
+      <span>${k.emoji}</span>
+      <span style="min-width:100px;font-weight:500">${k.nazev}</span>
+      <div class="alert-bar-wrap"><div class="alert-bar${over?' over':''}" style="width:${pct}%"></div></div>
+      <span style="font-family:'DM Mono',monospace;font-size:12px;white-space:nowrap">${formatKc(spent)} / ${formatKc(k.limit)}</span>
+      <span>${over ? '🚨 Překročen!' : '⚠️ ' + Math.round(pct) + '%'}</span>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  wrap.innerHTML = items ? `<div class="budget-alerts">${items}</div>` : '';
+}
+
+function clearFilter() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('filter-kat').value = '';
+  renderPrehled();
+}
+
+function smazatZaznam(id) {
+  if (!confirm('Smazat tento záznam?')) return;
+  ulozZaznamy(nactiZaznamy().filter(z => z.id !== id));
+  renderPrehled();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PŘIDAT ZÁZNAM
+// ═══════════════════════════════════════════════════════════════════
+
+let aktivniTyp = 'vydaj';
+
+function initFormDatum() { document.getElementById('form-datum').value = dnes(); }
+
+function setTyp(typ) {
+  aktivniTyp = typ;
+  document.getElementById('btn-vydaj').className = 'type-btn' + (typ==='vydaj'?' active-expense':'');
+  document.getElementById('btn-prijem').className = 'type-btn' + (typ==='prijem'?' active-income':'');
+  renderFormKategorie();
+}
+
+function renderFormKategorie() {
+  const kat = nactiKategorie().filter(k => k.typ === aktivniTyp);
+  document.getElementById('form-kategorie').innerHTML = kat.map(k => `<option value="${k.id}">${k.emoji} ${k.nazev}</option>`).join('');
+}
+
+// ── Inline nová kategorie ──
+let inlineEmoji = '📦';
+
+function toggleInlineKat() {
+  const panel = document.getElementById('inline-kat-panel');
+  const isOpen = panel.classList.toggle('open');
+  if (isOpen) {
+    // Renderuj emoji picker
+    document.getElementById('inline-emoji-row').innerHTML = EMOJIS.map(e =>
+      `<span class="kat-inline-emoji-opt${e===inlineEmoji?' sel':''}" onclick="vyberInlineEmoji('${e}')">${e}</span>`
+    ).join('');
+    document.getElementById('inline-kat-nazev').focus();
+  } else {
+    document.getElementById('inline-kat-nazev').value = '';
+    document.getElementById('inline-kat-limit').value = '';
+    document.getElementById('inline-kat-status').textContent = '';
+  }
+}
+
+function vyberInlineEmoji(e) {
+  inlineEmoji = e;
+  document.querySelectorAll('.kat-inline-emoji-opt').forEach(el => el.classList.toggle('sel', el.textContent === e));
+}
+
+function ulozInlineKat() {
+  const nazev = document.getElementById('inline-kat-nazev').value.trim();
+  const limit = parseFloat(document.getElementById('inline-kat-limit').value) || 0;
+  const status = document.getElementById('inline-kat-status');
+  if (!nazev) { status.textContent = '⚠ Zadej název.'; status.className = 'status-msg err'; return; }
+
+  const kategorie = nactiKategorie();
+  const novaId = 'kat_' + Date.now();
+  kategorie.push({ id: novaId, nazev, emoji: inlineEmoji, typ: aktivniTyp, default: false, limit });
+  ulozKategorie(kategorie);
+
+  // Obnov select a vyber novou kategorii
+  renderFormKategorie();
+  document.getElementById('form-kategorie').value = novaId;
+
+  status.textContent = `✓ Kategorie "${inlineEmoji} ${nazev}" přidána!`;
+  status.className = 'status-msg ok';
+  document.getElementById('inline-kat-nazev').value = '';
+  document.getElementById('inline-kat-limit').value = '';
+  setTimeout(() => toggleInlineKat(), 1200);
+}
+
+function ulozZaznam() {
+  const popis = document.getElementById('form-popis').value.trim();
+  const castkaVal = document.getElementById('form-castka').value;
+  const kategorieId = document.getElementById('form-kategorie').value;
+  const datum = document.getElementById('form-datum').value || dnes();
+  const status = document.getElementById('form-status');
+
+  if (!popis || !castkaVal) { status.textContent='⚠ Vyplň všechna pole.'; status.className='status-msg err'; return; }
+  const castka = parseFloat(castkaVal);
+  if (isNaN(castka) || castka <= 0) { status.textContent='⚠ Neplatná částka.'; status.className='status-msg err'; return; }
+
+  const zaznamy = nactiZaznamy();
+  zaznamy.push({ id: Date.now(), datum, typ: aktivniTyp, kategorieId, popis, castka });
+  ulozZaznamy(zaznamy);
+
+  status.textContent='✓ Uloženo!'; status.className='status-msg ok';
+  document.getElementById('form-popis').value='';
+  document.getElementById('form-castka').value='';
+  setTimeout(() => { status.textContent=''; }, 2000);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// OPAKUJÍCÍ SE PLATBY
+// ═══════════════════════════════════════════════════════════════════
+
+let aktivniRecTyp = 'vydaj';
+
+function setRecTyp(typ) {
+  aktivniRecTyp = typ;
+  document.getElementById('btn-rec-vydaj').className = 'type-btn'+(typ==='vydaj'?' active-expense':'');
+  document.getElementById('btn-rec-prijem').className = 'type-btn'+(typ==='prijem'?' active-income':'');
+  renderRecKategorie();
+}
+
+function renderRecKategorie() {
+  const kat = nactiKategorie().filter(k => k.typ === aktivniRecTyp);
+  document.getElementById('rec-kategorie').innerHTML = kat.map(k => `<option value="${k.id}">${k.emoji} ${k.nazev}</option>`).join('');
+  if (!document.getElementById('rec-datum').value) {
+    document.getElementById('rec-datum').value = dnes();
+  }
+}
+
+function pridatOpakujici() {
+  const popis = document.getElementById('rec-popis').value.trim();
+  const castkaVal = document.getElementById('rec-castka').value;
+  const kategorieId = document.getElementById('rec-kategorie').value;
+  const frekvence = document.getElementById('rec-frekvence').value;
+  const datumPrvni = document.getElementById('rec-datum').value || dnes();
+  const status = document.getElementById('rec-status');
+
+  if (!popis || !castkaVal) { status.textContent='⚠ Vyplň všechna pole.'; status.className='status-msg err'; return; }
+  const castka = parseFloat(castkaVal);
+  if (isNaN(castka) || castka <= 0) { status.textContent='⚠ Neplatná částka.'; status.className='status-msg err'; return; }
+
+  // posledniPridani nastavíme na den PŘED první splatností, aby se platba
+  // zobrazila jako splatná přesně od zadaného datumu
+  const prvniD = new Date(datumPrvni);
+  const predPrvni = new Date(prvniD);
+  if (frekvence === '1d') predPrvni.setDate(predPrvni.getDate() - 1);
+  else if (frekvence === '7d') predPrvni.setDate(predPrvni.getDate() - 7);
+  else if (frekvence === '1m') predPrvni.setMonth(predPrvni.getMonth() - 1);
+  else if (frekvence === '3m') predPrvni.setMonth(predPrvni.getMonth() - 3);
+  else if (frekvence === '4m') predPrvni.setMonth(predPrvni.getMonth() - 4);
+  else if (frekvence === '6m') predPrvni.setMonth(predPrvni.getMonth() - 6);
+  else if (frekvence === '12m') predPrvni.setFullYear(predPrvni.getFullYear() - 1);
+
+  const seznam = nactiOpakujici();
+  seznam.push({
+    id: Date.now(), typ: aktivniRecTyp, kategorieId, popis, castka, frekvence,
+    datumPrvni,
+    posledniPridani: predPrvni.toISOString().split('T')[0]
+  });
+  ulozOpakujici(seznam);
+
+  status.textContent='✓ Přidáno!'; status.className='status-msg ok';
+  document.getElementById('rec-popis').value='';
+  document.getElementById('rec-castka').value='';
+  document.getElementById('rec-datum').value = dnes();
+  setTimeout(() => { status.textContent=''; renderOpakujici(); }, 1000);
+}
+
+function frekvenceLabel(f) {
+  return { '1d':'denně', '7d':'týdně', '1m':'měsíčně', '3m':'každé 3 měs.', '4m':'každé 4 měs.', '6m':'každých 6 měs.', '12m':'ročně' }[f] || 'měsíčně';
+}
+
+function jeSplatna(r) {
+  if (!r.posledniPridani) return true;
+  const posl = new Date(r.posledniPridani);
+  const dnesD = new Date();
+  const f = r.frekvence || '1m';
+  let dalsi = new Date(posl);
+  if (f === '1d') dalsi.setDate(dalsi.getDate() + 1);
+  else if (f === '7d') dalsi.setDate(dalsi.getDate() + 7);
+  else if (f === '1m') dalsi.setMonth(dalsi.getMonth() + 1);
+  else if (f === '3m') dalsi.setMonth(dalsi.getMonth() + 3);
+  else if (f === '4m') dalsi.setMonth(dalsi.getMonth() + 4);
+  else if (f === '6m') dalsi.setMonth(dalsi.getMonth() + 6);
+  else if (f === '12m') dalsi.setFullYear(dalsi.getFullYear() + 1);
+  return dnesD >= dalsi;
+}
+
+function renderOpakujici() {
+  const seznam = nactiOpakujici();
+  const kategorie = nactiKategorie();
+  const list = document.getElementById('rec-list');
+  if (!seznam.length) { list.innerHTML='<div class="empty-state" style="padding:24px;">Žádné opakující se platby.</div>'; return; }
+  list.innerHTML = `<div class="records-list">${seznam.map(r => {
+    const kat = kategorie.find(k => k.id === r.kategorieId) || { emoji:'📦', nazev: r.kategorieId };
+    const sign = r.typ==='prijem' ? '+' : '−';
+    const cls = r.typ==='prijem' ? 'income' : 'expense';
+    const splatna = jeSplatna(r);
+    const splatnaBadge = splatna
+      ? `<span class="badge" style="background:rgba(34,197,94,0.2);color:var(--green)">● splatná</span>`
+      : `<span class="badge" style="background:rgba(102,102,128,0.15);color:var(--muted)">čeká</span>`;
+    const datumInfo = r.datumPrvni ? ` · od ${r.datumPrvni}` : '';
+    return `<div class="record-item">
+      <span class="record-date" style="font-size:11px;">${frekvenceLabel(r.frekvence)}${datumInfo}</span>
+      <span class="record-emoji">${kat.emoji}</span>
+      <span class="record-cat">${kat.nazev}</span>
+      <span class="record-desc">${r.popis} ${splatnaBadge}</span>
+      <span class="record-amount ${cls}">${sign}${formatKc(r.castka)}</span>
+      <button class="record-del" onclick="smazatOpakujici(${r.id})" title="Smazat">✕</button>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+function smazatOpakujici(id) {
+  if (!confirm('Odebrat tuto opakující se platbu?')) return;
+  ulozOpakujici(nactiOpakujici().filter(r => r.id !== id));
+  renderOpakujici();
+}
+
+function aplikujOpakujici() {
+  const seznam = nactiOpakujici();
+  const status = document.getElementById('rec-apply-status');
+  if (!seznam.length) { status.textContent='⚠ Žádné opakující se platby.'; status.className='status-msg err'; return; }
+
+  const zaznamy = nactiZaznamy();
+  let pridano = 0;
+
+  const novySeznam = seznam.map(r => {
+    if (!jeSplatna(r)) return r; // ještě není čas
+    zaznamy.push({ id: Date.now() + Math.random(), datum: dnes(), typ: r.typ, kategorieId: r.kategorieId, popis: r.popis, castka: r.castka, recuring: true });
+    pridano++;
+    return { ...r, posledniPridani: dnes() };
+  });
+
+  ulozZaznamy(zaznamy);
+  ulozOpakujici(novySeznam);
+  renderOpakujici();
+
+  status.textContent = pridano > 0
+    ? `✓ Přidáno ${pridano} splatných plateb.`
+    : `ℹ Žádná platba zatím není splatná.`;
+  status.className = 'status-msg ok';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GRAFY
+// ═══════════════════════════════════════════════════════════════════
+
+let charts = {};
+
+function renderGrafy() {
+  const mesic = aktivniMesicGrafy;
+  document.getElementById('grafy-subtitle').textContent = mesic ? `Zobrazeno: ${formatMesic(mesic)}` : 'Celkový přehled';
+
+  const zaznamy = filteredZaznamy(mesic);
+  const kategorie = nactiKategorie();
+  const vydaje = zaznamy.filter(z => z.typ==='vydaj');
+
+  const pieColors = ['#3b82f6','#22c55e','#f59e0b','#a855f7','#ef4444','#06b6d4','#ec4899','#84cc16'];
+
+  // Destroy old charts
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch {} });
+  charts = {};
+
+  // Koláč
+  const soucty = {};
+  vydaje.forEach(z => { soucty[z.kategorieId] = (soucty[z.kategorieId]||0)+z.castka; });
+  const pieLabels = Object.keys(soucty).map(id => { const k=kategorie.find(k=>k.id===id); return k?`${k.emoji} ${k.nazev}`:id; });
+
+  charts.pie = new Chart(document.getElementById('chart-pie'), {
+    type: 'doughnut',
+    data: { labels: pieLabels, datasets: [{ data: Object.values(soucty), backgroundColor: pieColors, borderWidth: 0 }] },
+    options: { plugins: { legend: { labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#e8e8f0', font:{ family:'DM Sans' } } } }, cutout:'55%' }
+  });
+
+  // Sloupce
+  const celkemP = zaznamy.filter(z=>z.typ==='prijem').reduce((s,z)=>s+z.castka,0);
+  const celkemV = vydaje.reduce((s,z)=>s+z.castka,0);
+  charts.bar = new Chart(document.getElementById('chart-bar'), {
+    type:'bar',
+    data:{ labels:['Příjmy','Výdaje'], datasets:[{ data:[celkemP,celkemV], backgroundColor:['#22c55e','#ef4444'], borderRadius:8, borderSkipped:false }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#666680',font:{family:'DM Sans'}},grid:{color:'#2a2a35'}}, y:{ticks:{color:'#666680',font:{family:'DM Sans'},callback:v=>v.toLocaleString('cs')+' Kč'},grid:{color:'#2a2a35'}} } }
+  });
+
+  // Čárový – vývoj bilance
+  const vsechny = nactiZaznamy();
+  const mesiceSoucty = {};
+  vsechny.forEach(z => {
+    const m = z.datum.slice(0,7);
+    if (!mesiceSoucty[m]) mesiceSoucty[m] = { p:0, v:0 };
+    if (z.typ==='prijem') mesiceSoucty[m].p += z.castka;
+    else mesiceSoucty[m].v += z.castka;
+  });
+  const sorted = Object.keys(mesiceSoucty).sort();
+  const lineLabels = sorted.map(m => formatMesic(m));
+  const lineData = sorted.map(m => mesiceSoucty[m].p - mesiceSoucty[m].v);
+
+  charts.line = new Chart(document.getElementById('chart-line'), {
+    type:'line',
+    data:{ labels:lineLabels, datasets:[{ label:'Bilance', data:lineData, borderColor:'#6366f1', backgroundColor:'rgba(99,102,241,0.1)', fill:true, tension:0.4, pointBackgroundColor:'#6366f1', pointRadius:4 }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#666680',font:{family:'DM Sans'}},grid:{color:'#2a2a35'}}, y:{ticks:{color:'#666680',font:{family:'DM Sans'},callback:v=>v.toLocaleString('cs')+' Kč'},grid:{color:'#2a2a35'}} } }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// KATEGORIE
+// ═══════════════════════════════════════════════════════════════════
+
+let aktivniKatTyp = 'vydaj';
+let vybranýEmoji = '📦';
+
+function renderKategorie() {
+  const kategorie = nactiKategorie();
+  const list = document.getElementById('kat-list');
+  const vydaje = kategorie.filter(k=>k.typ==='vydaj');
+  const prijmy = kategorie.filter(k=>k.typ==='prijem');
+  list.innerHTML = `
+    <div class="section-title" style="margin-bottom:12px;">Výdajové kategorie</div>
+    <div class="kategorie-grid">${vydaje.map(katKarta).join('')}</div>
+    <div class="section-title" style="margin-bottom:12px;">Příjmové kategorie</div>
+    <div class="kategorie-grid" style="margin-bottom:32px;">${prijmy.map(katKarta).join('')}</div>
+  `;
+  const picker = document.getElementById('emoji-picker');
+  picker.innerHTML = EMOJIS.map(e => `<span class="emoji-opt${e===vybranýEmoji?' selected':''}" onclick="vyberEmoji('${e}')">${e}</span>`).join('');
+}
+
+function katKarta(k) {
+  const limitText = k.limit > 0 ? `<div class="kat-budget">Limit: ${formatKc(k.limit)}/měs.</div>` : '';
+  return `<div class="kat-card"><span class="kat-emoji">${k.emoji}</span><div class="kat-info"><div class="kat-name">${k.nazev}</div><div class="kat-type">${k.typ==='vydaj'?'Výdaj':'Příjem'}</div>${limitText}</div><button class="kat-delete" onclick="otevritEditKategorii('${k.id}')" title="Upravit">✏️</button></div>`;
+}
+
+function setKatTyp(typ) {
+  aktivniKatTyp = typ;
+  document.getElementById('btn-kat-vydaj').className='type-btn'+(typ==='vydaj'?' active-expense':'');
+  document.getElementById('btn-kat-prijem').className='type-btn'+(typ==='prijem'?' active-income':'');
+}
+
+function vyberEmoji(e) {
+  vybranýEmoji = e;
+  document.querySelectorAll('.emoji-opt').forEach(el => el.classList.toggle('selected', el.textContent===e));
+}
+
+function pridatKategorii() {
+  const nazev = document.getElementById('kat-nazev').value.trim();
+  const limitVal = document.getElementById('kat-limit').value;
+  const status = document.getElementById('kat-status');
+  if (!nazev) { status.textContent='⚠ Zadej název kategorie.'; status.className='status-msg err'; return; }
+  const limit = parseFloat(limitVal) || 0;
+  const kategorie = nactiKategorie();
+  kategorie.push({ id:'kat_'+Date.now(), nazev, emoji:vybranýEmoji, typ:aktivniKatTyp, default:false, limit });
+  ulozKategorie(kategorie);
+  status.textContent='✓ Kategorie přidána!'; status.className='status-msg ok';
+  document.getElementById('kat-nazev').value='';
+  document.getElementById('kat-limit').value='';
+  setTimeout(() => { status.textContent=''; renderKategorie(); }, 1000);
+}
+
+function smazatKategorii(id) {
+  if (!confirm('Smazat tuto kategorii?')) return;
+  ulozKategorie(nactiKategorie().filter(k=>k.id!==id));
+  renderKategorie();
+}
+
+// ── Modal: Upravit záznam ──────────────────────────────────────────
+
+let editZaznamId = null;
+let modalTyp = 'vydaj';
+
+function otevritEditZaznam(id) {
+  const zaznamy = nactiZaznamy();
+  const z = zaznamy.find(z => z.id === id);
+  if (!z) return;
+  editZaznamId = id;
+  modalTyp = z.typ;
+  setModalTyp(z.typ);
+  renderModalKategorie(z.typ, z.kategorieId);
+  document.getElementById('modal-popis').value = z.popis;
+  document.getElementById('modal-castka').value = z.castka;
+  document.getElementById('modal-datum').value = z.datum;
+  document.getElementById('modal-zaznam').classList.add('open');
+}
+
+function setModalTyp(typ) {
+  modalTyp = typ;
+  document.getElementById('modal-btn-vydaj').className = 'type-btn'+(typ==='vydaj'?' active-expense':'');
+  document.getElementById('modal-btn-prijem').className = 'type-btn'+(typ==='prijem'?' active-income':'');
+  renderModalKategorie(typ, null);
+}
+
+function renderModalKategorie(typ, selectedId) {
+  const kat = nactiKategorie().filter(k=>k.typ===typ);
+  const sel = document.getElementById('modal-kategorie');
+  sel.innerHTML = kat.map(k=>`<option value="${k.id}"${k.id===selectedId?' selected':''}>${k.emoji} ${k.nazev}</option>`).join('');
+}
+
+function ulozEditZaznam() {
+  const zaznamy = nactiZaznamy();
+  const idx = zaznamy.findIndex(z=>z.id===editZaznamId);
+  if (idx === -1) return;
+  const castka = parseFloat(document.getElementById('modal-castka').value);
+  if (isNaN(castka) || castka <= 0) return;
+  zaznamy[idx] = { ...zaznamy[idx],
+    typ: modalTyp,
+    kategorieId: document.getElementById('modal-kategorie').value,
+    popis: document.getElementById('modal-popis').value.trim(),
+    castka,
+    datum: document.getElementById('modal-datum').value
+  };
+  ulozZaznamy(zaznamy);
+  zavritModal('modal-zaznam');
+  renderPrehled();
+}
+
+function smazatEditZaznam() {
+  if (!confirm('Smazat tento záznam?')) return;
+  ulozZaznamy(nactiZaznamy().filter(z=>z.id!==editZaznamId));
+  zavritModal('modal-zaznam');
+  renderPrehled();
+}
+
+// ── Modal: Upravit kategorii ──────────────────────────────────────
+
+let editKatId = null;
+let modalKatEmoji = '📦';
+
+function otevritEditKategorii(id) {
+  const kat = nactiKategorie().find(k=>k.id===id);
+  if (!kat) return;
+  editKatId = id;
+  modalKatEmoji = kat.emoji;
+  document.getElementById('modal-kat-nazev').value = kat.nazev;
+  document.getElementById('modal-kat-limit').value = kat.limit || '';
+  // Emoji picker
+  document.getElementById('modal-emoji-picker').innerHTML = EMOJIS.map(e =>
+    `<span class="emoji-opt${e===modalKatEmoji?' selected':''}" onclick="vyberModalEmoji('${e}')">${e}</span>`
+  ).join('');
+  // Výchozí kategorie lze upravit ale ne smazat
+  document.getElementById('modal-kat-del-btn').style.display = kat.default ? 'none' : '';
+  document.getElementById('modal-kat-overlay').classList.add('open');}
+
+function vyberModalEmoji(e) {
+  modalKatEmoji = e;
+  document.querySelectorAll('#modal-emoji-picker .emoji-opt').forEach(el => el.classList.toggle('selected', el.textContent===e));
+}
+
+function ulozEditKategorii() {
+  const nazev = document.getElementById('modal-kat-nazev').value.trim();
+  if (!nazev) return;
+  const limit = parseFloat(document.getElementById('modal-kat-limit').value) || 0;
+  const kategorie = nactiKategorie();
+  const idx = kategorie.findIndex(k=>k.id===editKatId);
+  if (idx === -1) return;
+  kategorie[idx] = { ...kategorie[idx], nazev, emoji: modalKatEmoji, limit };
+  ulozKategorie(kategorie);
+  zavritModal('modal-kat-overlay');
+  renderKategorie();
+}
+
+function smazatEditKategorii() {
+  if (!confirm('Smazat tuto kategorii?')) return;
+  ulozKategorie(nactiKategorie().filter(k=>k.id!==editKatId));
+  zavritModal('modal-kat-overlay');
+  renderKategorie();
+}
+
+function zavritModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EXPORT / IMPORT
+// ═══════════════════════════════════════════════════════════════════
+
+function exportCSV() {
+  const zaznamy = nactiZaznamy();
+  const kategorie = nactiKategorie();
+  if (!zaznamy.length) { alert('Žádné záznamy k exportu.'); return; }
+  const header = 'datum,typ,kategorie,popis,castka';
+  const rows = zaznamy.map(z => {
+    const kat = kategorie.find(k=>k.id===z.kategorieId);
+    const katNazev = kat ? kat.nazev : z.kategorieId;
+    return `${z.datum},${z.typ},"${katNazev}","${z.popis}",${z.castka}`;
+  });
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob(['\ufeff'+csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=`finance_export_${dnes()}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importCSV(event) {
+  const file = event.target.files[0];
+  const status = document.getElementById('import-status');
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const lines = e.target.result.replace(/^\ufeff/,'').split('\n').filter(l=>l.trim());
+      const header = lines[0].toLowerCase();
+      if (!header.includes('datum') || !header.includes('castka')) {
+        status.textContent='⚠ Neplatný formát CSV.'; status.className='status-msg err'; return;
+      }
+      const zaznamy = nactiZaznamy();
+      let pridano = 0;
+      lines.slice(1).forEach(line => {
+        const parts = line.match(/(".*?"|[^,]+)(?=,|$)/g);
+        if (!parts || parts.length < 5) return;
+        const [datum,,, popis, castka] = parts.map(p => p.replace(/^"|"$/g,'').trim());
+        const typ = parts[1]?.trim();
+        const castkaNum = parseFloat(castka);
+        if (!datum || !castkaNum) return;
+        zaznamy.push({ id: Date.now()+Math.random(), datum, typ: typ||'vydaj', kategorieId:'jine', popis: popis||'Import', castka: castkaNum });
+        pridano++;
+      });
+      ulozZaznamy(zaznamy);
+      status.textContent=`✓ Importováno ${pridano} záznamů.`; status.className='status-msg ok';
+    } catch(err) {
+      status.textContent='⚠ Chyba při čtení souboru.'; status.className='status-msg err';
+    }
+    event.target.value='';
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════════════════════════
+
+function toggleTheme(btn) {
+  const isLight = document.body.classList.toggle('light');
+  document.getElementById('theme-icon').textContent = isLight ? '🌙' : '☀️';
+  btn.querySelector('span:not(.icon)').textContent = isLight ? 'Tmavý režim' : 'Světlý režim';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SMAZAT VŠE
+// ═══════════════════════════════════════════════════════════════════
+
+function smazatVse() {
+  if (!confirm('Opravdu smazat všechny záznamy? Tato akce je nevratná.')) return;
+  localStorage.removeItem('zaznamy');
+  renderPrehled();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+function formatKc(n) { return Number(n).toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' Kč'; }
+function dnes() { return new Date().toISOString().split('T')[0]; }
+function dnesYM() { return new Date().toISOString().slice(0,7); }
+function formatMesic(ym) {
+  const [y,m] = ym.split('-');
+  const mesice = ['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'];
+  return `${mesice[parseInt(m)-1]} ${y}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+
+if (localStorage.getItem('theme') === 'light') {
+  document.body.classList.add('light');
+  document.getElementById('theme-icon').textContent = '🌙';
+}
+buildMesiceTabs('prehled');
+renderPrehled();
+renderMobilePrehled();
+
+// ── Service Worker (PWA offline podpora) ──
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'finance-tracker-v1';
+    const ASSETS = [
+      './',
+      'https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap',
+      'https://cdn.jsdelivr.net/npm/chart.js'
+    ];
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(() => {})));
+      self.skipWaiting();
+    });
+    self.addEventListener('activate', e => {
+      e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))));
+      self.clients.claim();
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => cached)));
+    });
+  `;
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).catch(() => {});
+}
+</script>
+<!-- ── MODAL: Upravit záznam ── -->
+<div class="modal-overlay" id="modal-zaznam">
+  <div class="modal">
+    <h2>Upravit záznam</h2>
+    <div class="type-toggle">
+      <button class="type-btn" id="modal-btn-vydaj" onclick="setModalTyp('vydaj')">− Výdaj</button>
+      <button class="type-btn" id="modal-btn-prijem" onclick="setModalTyp('prijem')">+ Příjem</button>
+    </div>
+    <div class="form-group"><label>Kategorie</label><select id="modal-kategorie"></select></div>
+    <div class="row-2">
+      <div class="form-group"><label>Popis</label><input type="text" id="modal-popis"></div>
+      <div class="form-group"><label>Částka (Kč)</label><input type="number" id="modal-castka" min="0"></div>
+    </div>
+    <div class="form-group"><label>Datum</label><input type="date" id="modal-datum"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="ulozEditZaznam()">Uložit</button>
+      <button class="btn btn-secondary" onclick="zavritModal('modal-zaznam')">Zrušit</button>
+      <button class="btn btn-danger" onclick="smazatEditZaznam()" style="flex:0.6;">Smazat</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Upravit kategorii ── -->
+<div class="modal-overlay" id="modal-kat-overlay">
+  <div class="modal">
+    <h2>Upravit kategorii</h2>
+    <div class="form-group"><label>Název</label><input type="text" id="modal-kat-nazev"></div>
+    <div class="form-group"><label>Měsíční limit (Kč)</label><input type="number" id="modal-kat-limit" min="0" placeholder="0 = bez limitu"></div>
+    <div class="form-group">
+      <label>Ikonka</label>
+      <div class="emoji-picker" id="modal-emoji-picker"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="ulozEditKategorii()">Uložit</button>
+      <button class="btn btn-secondary" onclick="zavritModal('modal-kat-overlay')">Zrušit</button>
+      <button class="btn btn-danger" onclick="smazatEditKategorii()" style="flex:0.6;" id="modal-kat-del-btn">Smazat</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
