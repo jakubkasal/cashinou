@@ -41,7 +41,7 @@ Každý skill říká AI jak má přistupovat k určitému typu úkolu, aby byl 
 **Kdy použít:** Chci změnit vzhled – barvy, rozložení, velikost písma...
 
 **Postup pro AI:**
-1. Design drží dark mode jako výchozí (`--bg: #0e0e11`, `--accent: #6366f1`)
+1. Design drží dark mode jako výchozí (`--bg: #0e0e11`, `--accent: #6366f1`) – vše v souboru `style.css`
 2. Font je vždy DM Sans (text) a DM Mono (čísla)
 3. Border radius je konzistentní: kartičky 14px, tlačítka 8px, malé prvky 6px
 4. Animace jsou jemné – transition 0.15s
@@ -81,6 +81,7 @@ git push
 3. Jdi na **netlify.com** → projekt → přetáhni složku `apka` do deploy zóny
 4. Za pár sekund je nová verze live
 
+*Poznámka: Vždy nahraj celou složku `apka`, ne jen jeden soubor – projekt nyní obsahuje více souborů (index.html, style.css, cashinou.png...).*
 ---
 
 ## Skill: Psaní automatických testů
