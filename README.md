@@ -9,7 +9,7 @@ Osobní finanční tracker – webová aplikace pro sledování příjmů, výda
 - Vizualizace dat pomocí grafů (koláčový, sloupcový, čárový vývoj)
 - Opakující se platby s nastavitelnou frekvencí (denně až ročně)
 - Měsíční limity na kategorie s upozorněním při překročení
-- Export a import dat ve formátu CSV
+- Export dat ve formátu CSV
 - Plně responzivní – funguje na počítači i mobilu
 - Funguje offline (PWA – Progressive Web App)
 - Dark / light mode
@@ -26,8 +26,8 @@ Osobní finanční tracker – webová aplikace pro sledování příjmů, výda
 ## Jak spustit
 
 ### Možnost 1 – Lokálně
-1. Stáhni soubor `index.html`
-2. Otevři ho v prohlížeči (dvojklik)
+1. Stáhni celou složku projektu (nebo git clone)
+2. Otevři index.html v prohlížeči
 3. Aplikace funguje okamžitě, bez instalace
 
 ### Možnost 2 – Online
@@ -57,9 +57,14 @@ open index.html
 
 ```
 cashinou/
-├── index.html      # Celá aplikace (HTML + CSS + JS)
+├── index.html      # Struktura aplikace (HTML)
+├── style.css       # Vzhled aplikace (CSS)
+├── cashinou.png    # Logo aplikace
+├── tests.html      # Spouštěč automatických testů
+├── tests.js        # Automatické testy
 ├── README.md       # Dokumentace
-└── AGENTS.md       # Popis práce s AI nástrojem
+├── AGENTS.md       # Popis práce s AI nástrojem
+└── SKILLS.md       # Postupy pro vývoj s AI
 ```
 
 ## Práce s AI
