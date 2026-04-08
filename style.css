@@ -1153,3 +1153,9 @@
          display: block !important
      }
  }
+
+ input[type="date"] {
+     text-align: left;
+     -webkit-appearance: none;
+     appearance: none;
+ }
