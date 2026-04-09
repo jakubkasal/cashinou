@@ -646,7 +646,6 @@
       if (!r.posledniPridani) return true;
       return new Date() >= posunDatum(r.posledniPridani, r.frekvence || '1m', 1);
     }
-    function pridatOpakujici_placeholder() { } // placeholder odstraněn
     function renderOpakujici() {
       const seznam = nactiOpakujici(), kategorie = nactiKategorie();
       const list = document.getElementById('rec-list');
@@ -680,8 +679,18 @@
         while (true) {
           const dalsi = posunDatum(posledni, f, 1);
           if (dalsi > new Date()) break;
-          zaznamy.push({ id: Date.now() + Math.random(), datum: dalsi.toISOString().split('T')[0], typ: r.typ, kategorieId: r.kategorieId, popis: r.popis, castka: r.castka, recuring: true });
-          posledni = dalsi; pridano++;
+          const datumStr = dalsi.toISOString().split('T')[0];
+          const jizExistuje = zaznamy.some(z =>
+            z.kategorieId === r.kategorieId &&
+            z.popis === r.popis &&
+            z.datum.slice(0, 7) === datumStr.slice(0, 7) &&
+            z.recuring === true
+          );
+          if (!jizExistuje) {
+            zaznamy.push({ id: Date.now() + Math.random(), datum: datumStr, typ: r.typ, kategorieId: r.kategorieId, popis: r.popis, castka: r.castka, recuring: true });
+            pridano++;
+          }
+          posledni = dalsi;
         }
         return { ...r, posledniPridani: posledni.toISOString().split('T')[0] };
       });
@@ -865,13 +874,14 @@
       const mi = document.getElementById('mob-theme-icon'); if (mi) mi.textContent = icon;
       const mt = document.getElementById('mob-theme-text'); if (mt) mt.textContent = isLight ? 'Tmavý režim' : 'Světlý režim';
     }
-
     function smazatVse() {
       if (!confirm('Opravdu smazat všechny záznamy? Tato akce je nevratná.')) return;
       localStorage.removeItem('zaznamy');
+      // Reset posledniPridani u opakujicich se plateb
+      const seznam = nactiOpakujici().map(r => ({ ...r, posledniPridani: r.datumPrvni ? posunDatum(r.datumPrvni, r.frekvence || '1m', -1).toISOString().split('T')[0] : r.posledniPridani }));
+      ulozOpakujici(seznam);
       renderPrehled(); renderMobilePrehled();
     }
-
     // ═══════════════════════════════════════
     // HELPERS
     // ═══════════════════════════════════════
@@ -883,8 +893,6 @@
       const [y, m] = ym.split('-');
       return ['Leden', 'Únor', 'Březen', 'Duben', 'Květen', 'Červen', 'Červenec', 'Srpen', 'Září', 'Říjen', 'Listopad', 'Prosinec'][parseInt(m) - 1] + ' ' + y;
     }
-
-    // Oprava pridatOpakujici - přepsat správně
     function pridatOpakujici() {
       const popis = document.getElementById('rec-popis').value.trim();
       const castkaVal = document.getElementById('rec-castka').value;
