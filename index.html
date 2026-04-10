@@ -196,7 +196,7 @@
     <!-- OPAKUJÍCÍ SE -->
     <div id="page-opakujici" class="page">
       <h1>Opakující se platby</h1>
-      <p class="page-subtitle">Nastavíš jednou, appka přidává automaticky</p>
+      <p class="page-subtitle">Nastavíš jednou, platby se přidávají samy při každém otevření appky</p>
       <div class="form-card" style="margin-bottom:28px">
         <div class="type-toggle">
           <button class="type-btn active-expense" id="btn-rec-vydaj" onclick="setRecTyp('vydaj')">− Výdaj</button>
@@ -467,7 +467,7 @@
       const list = document.getElementById('zaznamy-list');
       if (!list) return;
       if (!zaznamy.length) { list.innerHTML = '<div class="empty-state">Žádné záznamy.<br>Přidej první přes ➕ Přidat.</div>'; return; }
-      list.innerHTML = [...zaznamy].reverse().slice(0, 50).map(z => zaznamHTML(z, kategorie)).join('');
+      list.innerHTML = [...zaznamy].sort((a, b) => b.datum.localeCompare(a.datum)).slice(0, 50).map(z => zaznamHTML(z, kategorie)).join('');
     }
 
     let mobChartPie = null;
@@ -515,7 +515,7 @@
       const list = document.getElementById('mob-zaznamy-list');
       if (!list) return;
       if (!zaznamy.length) { list.innerHTML = '<div class="empty-state">Zatím žádné záznamy.</div>'; return; }
-      list.innerHTML = [...zaznamy].reverse().slice(0, 50).map(z => {
+      list.innerHTML = [...zaznamy].sort((a, b) => b.datum.localeCompare(a.datum)).slice(0, 50).map(z => {
         const kat = kategorie.find(k => k.id === z.kategorieId) || { emoji: '📦', nazev: z.kategorieId };
         const sign = z.typ === 'prijem' ? '+' : '−';
         return `<div class="record-item" style="grid-template-columns:40px 1fr auto auto">
@@ -663,13 +663,16 @@
     }
     function posunDatum(datum, f, smer) {
       const d = new Date(datum);
-      if (f === '1d') d.setDate(d.getDate() + smer);
-      else if (f === '7d') d.setDate(d.getDate() + 7 * smer);
-      else if (f === '1m') d.setMonth(d.getMonth() + smer);
-      else if (f === '3m') d.setMonth(d.getMonth() + 3 * smer);
-      else if (f === '4m') d.setMonth(d.getMonth() + 4 * smer);
-      else if (f === '6m') d.setMonth(d.getMonth() + 6 * smer);
-      else if (f === '12m') d.setFullYear(d.getFullYear() + smer);
+      if (f === '1d') { d.setDate(d.getDate() + smer); }
+      else if (f === '7d') { d.setDate(d.getDate() + 7 * smer); }
+      else {
+        const mesice = f === '1m' ? 1 : f === '3m' ? 3 : f === '4m' ? 4 : f === '6m' ? 6 : 12;
+        const denPuvodni = d.getDate();
+        d.setDate(1);
+        d.setMonth(d.getMonth() + mesice * smer);
+        const posledniDen = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        d.setDate(Math.min(denPuvodni, posledniDen));
+      }
       return d;
     }
     function jeSplatna(r) {
