@@ -23,11 +23,35 @@
     rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Badge na bottom nav */
+    .bnav-badge {
+      position: absolute;
+      top: 6px;
+      right: 50%;
+      transform: translateX(10px);
+      background: var(--red);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      min-width: 16px;
+      height: 16px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      pointer-events: none;
+    }
+
+    #bnav-opakujici {
+      position: relative;
+    }
+  </style>
 </head>
 
 <body>
 
-  <!-- SIDEBAR (desktop) -->
   <nav class="sidebar">
     <div class="logo"><img src="cashinou.png" style="height:110px;display:block;margin:0 auto"></div>
     <button class="nav-btn active" onclick="showPage('prehled',this)"><span
@@ -47,7 +71,6 @@
     </div>
   </nav>
 
-  <!-- BOTTOM NAV (mobil) -->
   <nav class="bottom-nav">
     <button class="bottom-nav-btn active" id="bnav-prehled" onclick="showPage('prehled',this)"><span
         class="icon">📊</span><span>Přehled</span></button>
@@ -66,8 +89,6 @@
 
     <!-- PŘEHLED -->
     <div id="page-prehled" class="page active">
-
-      <!-- Mobilní layout -->
       <div class="mobile-only">
         <div class="mobile-hero">
           <div class="mobile-hero-label">Bilance</div>
@@ -87,14 +108,19 @@
           záznam</button>
         <!-- Měsíční filtry na mobilu -->
         <div class="month-tabs" id="mob-prehled-tabs" style="margin-bottom:16px"></div>
+        <!-- Vyhledávání a filtr na mobilu -->
+        <div class="filter-bar" style="margin-bottom:16px">
+          <input type="text" id="mob-search-input" placeholder="🔍 Hledat..." oninput="renderMobilePrehled()"
+            style="flex:1;min-width:0">
+          <select id="mob-filter-kat" onchange="renderMobilePrehled()" style="max-width:140px"></select>
+          <button class="filter-clear" onclick="clearMobFilter()">✕</button>
+        </div>
         <div class="mobile-chart-card">
           <div class="mobile-chart-title">Výdaje podle kategorií</div><canvas id="mob-chart-pie"></canvas>
         </div>
-        <div class="section-title" style="margin-bottom:12px">Poslední záznamy</div>
+        <div class="section-title" style="margin-bottom:12px">Záznamy</div>
         <div class="records-list" id="mob-zaznamy-list"></div>
       </div>
-
-      <!-- Desktop layout -->
       <div class="desktop-only">
         <h1>Přehled</h1>
         <p class="page-subtitle" id="prehled-subtitle"></p>
@@ -170,7 +196,7 @@
     <!-- OPAKUJÍCÍ SE -->
     <div id="page-opakujici" class="page">
       <h1>Opakující se platby</h1>
-      <p class="page-subtitle">Nastavíš jednou, přidávej jedním kliknutím když je čas</p>
+      <p class="page-subtitle">Nastavíš jednou, appka přidává automaticky</p>
       <div class="form-card" style="margin-bottom:28px">
         <div class="type-toggle">
           <button class="type-btn active-expense" id="btn-rec-vydaj" onclick="setRecTyp('vydaj')">− Výdaj</button>
@@ -183,7 +209,6 @@
           <div class="form-group"><label>Částka (Kč)</label><input type="number" id="rec-castka" placeholder="0"
               min="0"></div>
         </div>
-        <!-- Fix: frekvence a datum vedle sebe jen na desktopu, na mobilu pod sebou -->
         <div class="form-group"><label>Frekvence</label>
           <select id="rec-frekvence">
             <option value="1d">Denně</option>
@@ -273,21 +298,16 @@
       <p class="page-subtitle">Nastavení a správa</p>
       <div style="display:flex;flex-direction:column;gap:10px;max-width:400px">
         <button class="btn btn-secondary" style="margin-top:0;text-align:left;display:flex;align-items:center;gap:12px"
-          onclick="showPage('kategorie',document.getElementById('bnav-vice'))">
-          <span style="font-size:20px">🏷️</span><span>Kategorie</span>
-        </button>
+          onclick="showPage('kategorie',document.getElementById('bnav-vice'))"><span
+            style="font-size:20px">🏷️</span><span>Kategorie</span></button>
         <button class="btn btn-secondary" style="margin-top:0;text-align:left;display:flex;align-items:center;gap:12px"
-          onclick="showPage('nastroje',document.getElementById('bnav-vice'))">
-          <span style="font-size:20px">🔧</span><span>Nástroje (export CSV)</span>
-        </button>
+          onclick="showPage('nastroje',document.getElementById('bnav-vice'))"><span
+            style="font-size:20px">🔧</span><span>Nástroje (export CSV)</span></button>
         <button class="btn btn-secondary" style="margin-top:0;text-align:left;display:flex;align-items:center;gap:12px"
-          onclick="toggleThemeMobile()">
-          <span style="font-size:20px" id="mob-theme-icon">☀️</span><span id="mob-theme-text">Světlý režim</span>
-        </button>
+          onclick="toggleThemeMobile()"><span style="font-size:20px" id="mob-theme-icon">☀️</span><span
+            id="mob-theme-text">Světlý režim</span></button>
         <button class="btn btn-danger" style="margin-top:0;text-align:left;display:flex;align-items:center;gap:12px"
-          onclick="smazatVse()">
-          <span style="font-size:20px">🗑️</span><span>Smazat všechny záznamy</span>
-        </button>
+          onclick="smazatVse()"><span style="font-size:20px">🗑️</span><span>Smazat všechny záznamy</span></button>
       </div>
     </div>
 
@@ -333,9 +353,6 @@
   </div>
 
   <script>
-    // ═══════════════════════════════════════
-    // DATA
-    // ═══════════════════════════════════════
     const EMOJIS = ['🚗', '⛽', '🔧', '🍔', '🍕', '☕', '🛒', '🎮', '🎬', '🎵', '💪', '✈️', '🏠', '💊', '👕', '📚', '🐾', '🌱', '💡', '📱', '💰', '💳', '🎁', '🏦', '📦', '🚌', '🍺', '🍷', '🎂', '🏋️', '⚽', '🎯', '🛍️', '💻', '🖨️', '🔑', '🧴', '🧹', '🌊', '🎸'];
     const DEFAULT_KAT = [
       { id: 'auto', nazev: 'Auto', emoji: '🚗', typ: 'vydaj', default: true, limit: 0 },
@@ -354,10 +371,22 @@
     const nactiOpakujici = () => { try { return JSON.parse(localStorage.getItem('opakujici')) || []; } catch { return []; } };
     const ulozOpakujici = o => localStorage.setItem('opakujici', JSON.stringify(o));
 
-    // ═══════════════════════════════════════
-    // NAVIGACE
-    // ═══════════════════════════════════════
     let aktivniMesicPrehled = null, aktivniMesicGrafy = null, aktivniMesicMob = null;
+
+    // ── BADGE ──
+    function updateBadge() {
+      const seznam = nactiOpakujici();
+      const splatne = seznam.filter(r => jeSplatna(r)).length;
+      const btn = document.getElementById('bnav-opakujici');
+      const existingBadge = btn.querySelector('.bnav-badge');
+      if (existingBadge) existingBadge.remove();
+      if (splatne > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'bnav-badge';
+        badge.textContent = splatne;
+        btn.appendChild(badge);
+      }
+    }
 
     function showPage(page, btn) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -371,9 +400,6 @@
       if (page === 'kategorie') renderKategorie();
     }
 
-    // ═══════════════════════════════════════
-    // MĚSÍČNÍ TABS
-    // ═══════════════════════════════════════
     function getMesice() {
       const m = new Set(nactiZaznamy().map(z => z.datum.slice(0, 7)));
       return ['vše', ...Array.from(m).sort().reverse()];
@@ -413,9 +439,6 @@
       return mesic ? z.filter(z => z.datum.startsWith(mesic)) : z;
     }
 
-    // ═══════════════════════════════════════
-    // PŘEHLED (desktop)
-    // ═══════════════════════════════════════
     function renderPrehled() {
       const mesic = aktivniMesicPrehled;
       let zaznamy = filteredZaznamy(mesic);
@@ -447,14 +470,24 @@
       list.innerHTML = [...zaznamy].reverse().slice(0, 50).map(z => zaznamHTML(z, kategorie)).join('');
     }
 
-    // ═══════════════════════════════════════
-    // PŘEHLED (mobil)
-    // ═══════════════════════════════════════
     let mobChartPie = null;
     function renderMobilePrehled() {
       const mesic = aktivniMesicMob;
-      const zaznamy = filteredZaznamy(mesic);
+      let zaznamy = filteredZaznamy(mesic);
       const kategorie = nactiKategorie();
+
+      // Vyhledávání a filtr na mobilu
+      const q = (document.getElementById('mob-search-input')?.value || '').toLowerCase();
+      const katFilter = document.getElementById('mob-filter-kat')?.value || '';
+      const mobSel = document.getElementById('mob-filter-kat');
+      if (mobSel) {
+        const cur = mobSel.value;
+        mobSel.innerHTML = '<option value="">Vše</option>' +
+          kategorie.map(k => `<option value="${k.id}"${k.id === cur ? ' selected' : ''}>${k.emoji} ${k.nazev}</option>`).join('');
+      }
+      if (q) zaznamy = zaznamy.filter(z => z.popis.toLowerCase().includes(q) || z.kategorieId.includes(q));
+      if (katFilter) zaznamy = zaznamy.filter(z => z.kategorieId === katFilter);
+
       const prijmy = zaznamy.filter(z => z.typ === 'prijem').reduce((s, z) => s + z.castka, 0);
       const vydaje = zaznamy.filter(z => z.typ === 'vydaj').reduce((s, z) => s + z.castka, 0);
       const bilance = prijmy - vydaje;
@@ -465,47 +498,52 @@
         document.getElementById('mob-prijmy').textContent = formatKc(prijmy);
         document.getElementById('mob-vydaje').textContent = formatKc(vydaje);
       }
-      // Graf
       const canvas = document.getElementById('mob-chart-pie');
       if (!canvas) return;
       const soucty = {};
       zaznamy.filter(z => z.typ === 'vydaj').forEach(z => { soucty[z.kategorieId] = (soucty[z.kategorieId] || 0) + z.castka; });
       if (mobChartPie) { try { mobChartPie.destroy(); } catch { } }
-      if (!Object.keys(soucty).length) { canvas.style.display = 'none'; return; }
-      canvas.style.display = '';
-      mobChartPie = new Chart(canvas, {
-        type: 'doughnut',
-        data: { labels: Object.keys(soucty).map(id => { const k = kategorie.find(k => k.id === id); return k ? `${k.emoji} ${k.nazev}` : id; }), datasets: [{ data: Object.values(soucty), backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'], borderWidth: 0 }] },
-        options: { plugins: { legend: { position: 'bottom', labels: { color: getColor('--text'), font: { family: 'DM Sans', size: 12 }, padding: 12 } } }, cutout: '50%' }
-      });
-      // Záznamy
+      if (!Object.keys(soucty).length) { canvas.style.display = 'none'; }
+      else {
+        canvas.style.display = '';
+        mobChartPie = new Chart(canvas, {
+          type: 'doughnut',
+          data: { labels: Object.keys(soucty).map(id => { const k = kategorie.find(k => k.id === id); return k ? `${k.emoji} ${k.nazev}` : id; }), datasets: [{ data: Object.values(soucty), backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#ef4444', '#06b6d4', '#ec4899', '#84cc16'], borderWidth: 0 }] },
+          options: { plugins: { legend: { position: 'bottom', labels: { color: getColor('--text'), font: { family: 'DM Sans', size: 12 }, padding: 12 } } }, cutout: '50%' }
+        });
+      }
       const list = document.getElementById('mob-zaznamy-list');
       if (!list) return;
       if (!zaznamy.length) { list.innerHTML = '<div class="empty-state">Zatím žádné záznamy.</div>'; return; }
-      list.innerHTML = [...zaznamy].reverse().slice(0, 20).map(z => {
+      list.innerHTML = [...zaznamy].reverse().slice(0, 50).map(z => {
         const kat = kategorie.find(k => k.id === z.kategorieId) || { emoji: '📦', nazev: z.kategorieId };
         const sign = z.typ === 'prijem' ? '+' : '−';
         return `<div class="record-item" style="grid-template-columns:40px 1fr auto auto">
-        <span class="record-emoji">${kat.emoji}</span>
-        <span class="record-desc">${z.popis}<br><span style="font-size:11px;color:var(--muted);font-weight:400">${z.datum} · ${kat.nazev}</span></span>
-        <span class="record-amount ${z.typ === 'prijem' ? 'income' : 'expense'}">${sign}${formatKc(z.castka)}</span>
-        <button class="record-del" onclick="otevritEditZaznam(${z.id})" title="Upravit" style="color:var(--muted)">✏️</button>
-      </div>`;
+          <span class="record-emoji">${kat.emoji}</span>
+          <span class="record-desc">${z.popis}<br><span style="font-size:11px;color:var(--muted);font-weight:400">${z.datum} · ${kat.nazev}</span></span>
+          <span class="record-amount ${z.typ === 'prijem' ? 'income' : 'expense'}">${sign}${formatKc(z.castka)}</span>
+          <button class="record-del" onclick="otevritEditZaznam(${z.id})" title="Upravit" style="color:var(--muted)">✏️</button>
+        </div>`;
       }).join('');
     }
 
-    // Pomocná funkce pro HTML záznamu
+    function clearMobFilter() {
+      document.getElementById('mob-search-input').value = '';
+      document.getElementById('mob-filter-kat').value = '';
+      renderMobilePrehled();
+    }
+
     function zaznamHTML(z, kategorie) {
       const kat = kategorie.find(k => k.id === z.kategorieId) || { emoji: '📦', nazev: z.kategorieId };
       const sign = z.typ === 'prijem' ? '+' : '−';
       return `<div class="record-item">
-      <span class="record-date">${z.datum}</span>
-      <span class="record-emoji">${kat.emoji}</span>
-      <span class="record-cat">${kat.nazev}</span>
-      <span class="record-desc">${z.popis}${z.recuring ? '<span class="badge badge-recur">🔁</span>' : ''}</span>
-      <span class="record-amount ${z.typ === 'prijem' ? 'income' : 'expense'}">${sign}${formatKc(z.castka)}</span>
-      <button class="record-del" onclick="otevritEditZaznam(${z.id})" title="Upravit">✏️</button>
-    </div>`;
+        <span class="record-date">${z.datum}</span>
+        <span class="record-emoji">${kat.emoji}</span>
+        <span class="record-cat">${kat.nazev}</span>
+        <span class="record-desc">${z.popis}${z.recuring ? '<span class="badge badge-recur">🔁</span>' : ''}</span>
+        <span class="record-amount ${z.typ === 'prijem' ? 'income' : 'expense'}">${sign}${formatKc(z.castka)}</span>
+        <button class="record-del" onclick="otevritEditZaznam(${z.id})" title="Upravit">✏️</button>
+      </div>`;
     }
 
     function renderStats(zaznamy, kategorie) {
@@ -520,8 +558,8 @@
       const topId = Object.entries(freq).sort((a, b) => b[1] - a[1])[0]?.[0];
       const topKat = kategorie.find(k => k.id === topId) || { emoji: '📦', nazev: topId };
       el.innerHTML = `
-      <div class="stat-card"><div class="stat-label">Největší výdaj</div><div class="stat-value"><span class="stat-emoji">${maxKat.emoji}</span>${max.popis} — ${formatKc(max.castka)}</div></div>
-      <div class="stat-card"><div class="stat-label">Nejčastější kategorie výdajů</div><div class="stat-value"><span class="stat-emoji">${topKat.emoji}</span>${topKat.nazev} (${freq[topId]}×)</div></div>`;
+        <div class="stat-card"><div class="stat-label">Největší výdaj</div><div class="stat-value"><span class="stat-emoji">${maxKat.emoji}</span>${max.popis} — ${formatKc(max.castka)}</div></div>
+        <div class="stat-card"><div class="stat-label">Nejčastější kategorie výdajů</div><div class="stat-value"><span class="stat-emoji">${topKat.emoji}</span>${topKat.nazev} (${freq[topId]}×)</div></div>`;
     }
 
     function renderBudgetAlerts(mesic) {
@@ -536,20 +574,17 @@
         const over = spent > k.limit;
         if (pct < 50) return '';
         return `<div class="alert-item${over ? ' over' : ''}">
-        <span>${k.emoji}</span><span style="min-width:100px;font-weight:500">${k.nazev}</span>
-        <div class="alert-bar-wrap"><div class="alert-bar${over ? ' over' : ''}" style="width:${pct}%"></div></div>
-        <span style="font-family:'DM Mono',monospace;font-size:12px;white-space:nowrap">${formatKc(spent)} / ${formatKc(k.limit)}</span>
-        <span>${over ? '🚨 Překročen!' : '⚠️ ' + Math.round(pct) + '%'}</span>
-      </div>`;
+          <span>${k.emoji}</span><span style="min-width:100px;font-weight:500">${k.nazev}</span>
+          <div class="alert-bar-wrap"><div class="alert-bar${over ? ' over' : ''}" style="width:${pct}%"></div></div>
+          <span style="font-family:'DM Mono',monospace;font-size:12px;white-space:nowrap">${formatKc(spent)} / ${formatKc(k.limit)}</span>
+          <span>${over ? '🚨 Překročen!' : '⚠️ ' + Math.round(pct) + '%'}</span>
+        </div>`;
       }).filter(Boolean).join('');
       wrap.innerHTML = items ? `<div class="budget-alerts">${items}</div>` : '';
     }
 
     function clearFilter() { document.getElementById('search-input').value = ''; document.getElementById('filter-kat').value = ''; renderPrehled(); }
 
-    // ═══════════════════════════════════════
-    // PŘIDAT ZÁZNAM
-    // ═══════════════════════════════════════
     let aktivniTyp = 'vydaj';
     function initFormDatum() { document.getElementById('form-datum').value = dnes(); }
     function setTyp(typ) {
@@ -562,7 +597,6 @@
       document.getElementById('form-kategorie').innerHTML = nactiKategorie().filter(k => k.typ === aktivniTyp).map(k => `<option value="${k.id}">${k.emoji} ${k.nazev}</option>`).join('');
     }
 
-    // Inline kategorie
     let inlineEmoji = '📦';
     function toggleInlineKat() {
       const panel = document.getElementById('inline-kat-panel');
@@ -608,15 +642,11 @@
       ulozZaznamy(zaznamy);
       document.getElementById('form-popis').value = '';
       document.getElementById('form-castka').value = '';
-      // Přepni na přehled – správné tlačítko pro desktop i mobil
       const isMobile = window.innerWidth <= 768;
       const navBtn = isMobile ? document.getElementById('bnav-prehled') : document.querySelector('.nav-btn');
       showPage('prehled', navBtn);
     }
 
-    // ═══════════════════════════════════════
-    // OPAKUJÍCÍ SE
-    // ═══════════════════════════════════════
     let aktivniRecTyp = 'vydaj';
     function setRecTyp(typ) {
       aktivniRecTyp = typ;
@@ -654,23 +684,24 @@
         const kat = kategorie.find(k => k.id === r.kategorieId) || { emoji: '📦', nazev: r.kategorieId };
         const splatna = jeSplatna(r);
         return `<div class="record-item">
-        <span class="record-date" style="font-size:11px">${frekvenceLabel(r.frekvence)}${r.datumPrvni ? ` · od ${r.datumPrvni}` : ''}</span>
-        <span class="record-emoji">${kat.emoji}</span>
-        <span class="record-cat">${kat.nazev}</span>
-        <span class="record-desc">${r.popis} <span class="badge" style="background:${splatna ? 'rgba(34,197,94,.2)' : 'rgba(102,102,128,.15)'};color:${splatna ? 'var(--green)' : 'var(--muted)'}">${splatna ? '● splatná' : 'čeká'}</span></span>
-        <span class="record-amount ${r.typ === 'prijem' ? 'income' : 'expense'}">${r.typ === 'prijem' ? '+' : '−'}${formatKc(r.castka)}</span>
-        <button class="record-del" onclick="smazatOpakujici(${r.id})" title="Smazat">✕</button>
-      </div>`;
+          <span class="record-date" style="font-size:11px">${frekvenceLabel(r.frekvence)}${r.datumPrvni ? ` · od ${r.datumPrvni}` : ''}</span>
+          <span class="record-emoji">${kat.emoji}</span>
+          <span class="record-cat">${kat.nazev}</span>
+          <span class="record-desc">${r.popis} <span class="badge" style="background:${splatna ? 'rgba(34,197,94,.2)' : 'rgba(102,102,128,.15)'};color:${splatna ? 'var(--green)' : 'var(--muted)'}">${splatna ? '● splatná' : 'čeká'}</span></span>
+          <span class="record-amount ${r.typ === 'prijem' ? 'income' : 'expense'}">${r.typ === 'prijem' ? '+' : '−'}${formatKc(r.castka)}</span>
+          <button class="record-del" onclick="smazatOpakujici(${r.id})" title="Smazat">✕</button>
+        </div>`;
       }).join('')}</div>`;
     }
     function smazatOpakujici(id) {
       if (!confirm('Odebrat tuto opakující se platbu?')) return;
       ulozOpakujici(nactiOpakujici().filter(r => r.id !== id));
-      renderOpakujici();
+      renderOpakujici(); updateBadge();
     }
     function aplikujOpakujici() {
-      const seznam = nactiOpakujici(), status = document.getElementById('rec-apply-status');
-      if (!seznam.length) { status.textContent = '⚠ Žádné opakující se platby.'; status.className = 'status-msg err'; return; }
+      const seznam = nactiOpakujici();
+      const status = document.getElementById('rec-apply-status');
+      if (!seznam.length) { if (status) { status.textContent = '⚠ Žádné opakující se platby.'; status.className = 'status-msg err'; } return; }
       const zaznamy = nactiZaznamy();
       let pridano = 0;
       const novySeznam = seznam.map(r => {
@@ -694,14 +725,15 @@
         }
         return { ...r, posledniPridani: posledni.toISOString().split('T')[0] };
       });
-      ulozZaznamy(zaznamy); ulozOpakujici(novySeznam); renderOpakujici();
-      status.textContent = pridano > 0 ? `✓ Přidáno ${pridano} splatných plateb.` : 'ℹ Žádná platba zatím není splatná.';
-      status.className = 'status-msg ok';
+      ulozZaznamy(zaznamy); ulozOpakujici(novySeznam);
+      if (document.getElementById('rec-list')) renderOpakujici();
+      updateBadge();
+      if (status) {
+        status.textContent = pridano > 0 ? `✓ Přidáno ${pridano} splatných plateb.` : 'ℹ Žádná platba zatím není splatná.';
+        status.className = 'status-msg ok';
+      }
     }
 
-    // ═══════════════════════════════════════
-    // GRAFY
-    // ═══════════════════════════════════════
     let charts = {};
     function renderGrafy() {
       const mesic = aktivniMesicGrafy;
@@ -734,17 +766,14 @@
       });
     }
 
-    // ═══════════════════════════════════════
-    // KATEGORIE
-    // ═══════════════════════════════════════
     let aktivniKatTyp = 'vydaj', vybranýEmoji = '📦';
     function renderKategorie() {
       const k = nactiKategorie();
       document.getElementById('kat-list').innerHTML = `
-      <div class="section-title" style="margin-bottom:12px">Výdajové kategorie</div>
-      <div class="kategorie-grid">${k.filter(k => k.typ === 'vydaj').map(katKarta).join('')}</div>
-      <div class="section-title" style="margin-bottom:12px">Příjmové kategorie</div>
-      <div class="kategorie-grid" style="margin-bottom:32px">${k.filter(k => k.typ === 'prijem').map(katKarta).join('')}</div>`;
+        <div class="section-title" style="margin-bottom:12px">Výdajové kategorie</div>
+        <div class="kategorie-grid">${k.filter(k => k.typ === 'vydaj').map(katKarta).join('')}</div>
+        <div class="section-title" style="margin-bottom:12px">Příjmové kategorie</div>
+        <div class="kategorie-grid" style="margin-bottom:32px">${k.filter(k => k.typ === 'prijem').map(katKarta).join('')}</div>`;
       document.getElementById('emoji-picker').innerHTML = EMOJIS.map(e => `<span class="emoji-opt${e === vybranýEmoji ? ' selected' : ''}" onclick="vyberEmoji('${e}')">${e}</span>`).join('');
     }
     function katKarta(k) {
@@ -768,9 +797,6 @@
       setTimeout(() => { status.textContent = ''; renderKategorie(); }, 1000);
     }
 
-    // ═══════════════════════════════════════
-    // MODALY
-    // ═══════════════════════════════════════
     let editZaznamId = null, modalTyp = 'vydaj', editKatId = null, modalKatEmoji = '📦';
     function otevritEditZaznam(id) {
       const z = nactiZaznamy().find(z => z.id === id);
@@ -835,9 +861,6 @@
     }
     function zavritModal(id) { document.getElementById(id).classList.remove('open'); }
 
-    // ═══════════════════════════════════════
-    // EXPORT
-    // ═══════════════════════════════════════
     function exportCSV() {
       const zaznamy = nactiZaznamy(), kategorie = nactiKategorie();
       if (!zaznamy.length) { alert('Žádné záznamy k exportu.'); return; }
@@ -848,17 +871,11 @@
       a.download = `cashinou_export_${dnes()}.csv`; a.click();
     }
 
-    // ═══════════════════════════════════════
-    // THEME
-    // ═══════════════════════════════════════
     function toggleTheme(btn) {
       const isLight = document.body.classList.toggle('light');
       applyThemeIcons(isLight);
-      if (btn && btn.querySelector('span:not(.icon)')) {
-        btn.querySelector('span:not(.icon)').textContent = isLight ? 'Tmavý režim' : 'Světlý režim';
-      }
+      if (btn && btn.querySelector('span:not(.icon)')) btn.querySelector('span:not(.icon)').textContent = isLight ? 'Tmavý režim' : 'Světlý režim';
       localStorage.setItem('theme', isLight ? 'light' : 'dark');
-      // Obnov grafy s novými barvami
       if (document.getElementById('page-grafy').classList.contains('active')) renderGrafy();
       if (document.getElementById('mob-chart-pie')) renderMobilePrehled();
     }
@@ -877,14 +894,11 @@
     function smazatVse() {
       if (!confirm('Opravdu smazat všechny záznamy? Tato akce je nevratná.')) return;
       localStorage.removeItem('zaznamy');
-      // Reset posledniPridani u opakujicich se plateb
       const seznam = nactiOpakujici().map(r => ({ ...r, posledniPridani: r.datumPrvni ? posunDatum(r.datumPrvni, r.frekvence || '1m', -1).toISOString().split('T')[0] : r.posledniPridani }));
       ulozOpakujici(seznam);
-      renderPrehled(); renderMobilePrehled();
+      updateBadge(); renderPrehled(); renderMobilePrehled();
     }
-    // ═══════════════════════════════════════
-    // HELPERS
-    // ═══════════════════════════════════════
+
     function getColor(varName) { return getComputedStyle(document.body).getPropertyValue(varName).trim() || (varName === '--text' ? '#e8e8f0' : varName === '--muted' ? '#666680' : '#2a2a35'); }
     function formatKc(n) { return Number(n).toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' Kč'; }
     function dnes() { return new Date().toISOString().split('T')[0]; }
@@ -910,21 +924,21 @@
       document.getElementById('rec-popis').value = '';
       document.getElementById('rec-castka').value = '';
       document.getElementById('rec-datum').value = dnes();
+      updateBadge();
       setTimeout(() => { status.textContent = ''; renderOpakujici(); }, 1000);
     }
 
-    // ═══════════════════════════════════════
     // INIT
-    // ═══════════════════════════════════════
     if (localStorage.getItem('theme') === 'light') {
       document.body.classList.add('light');
       applyThemeIcons(true);
     }
+    aplikujOpakujici();
+    updateBadge();
     buildMesiceTabs('prehled'); buildMobTabs(); renderPrehled(); renderMobilePrehled();
 
-    // Service Worker (PWA)
     if ('serviceWorker' in navigator) {
-      const sw = `const C='cashinou-v2',A=['./']; self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(A).catch(()=>{})));self.skipWaiting();}); self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim();}); self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>r)));});`;
+      const sw = `const C='cashinou-v3',A=['./']; self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(A).catch(()=>{})));self.skipWaiting();}); self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim();}); self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>r)));});`;
       navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw], { type: 'application/javascript' }))).catch(() => { });
     }
   </script>
