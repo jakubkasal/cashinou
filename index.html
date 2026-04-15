@@ -691,8 +691,8 @@
       const cerpatSporeni = document.getElementById('form-cerpat-sporeni')?.checked;
       if (cerpatSporeni) {
         const naspořeno = nactiZaznamy()
-          .filter(z => z.kategorieId === 'sporeni' && z.typ === 'vydaj')
-          .reduce((s, z) => z.popis.startsWith('Čerpání:') ? s - z.castka : s + z.castka, 0);
+          .filter(z => z.kategorieId === 'sporeni')
+          .reduce((s, z) => z.typ === 'vydaj' ? s + z.castka : s - z.castka, 0);
         if (castka > naspořeno) {
           status.textContent = `⚠ Nedostatek naspořených peněz. Máš naspořeno pouze ${formatKc(naspořeno)}.`;
           status.className = 'status-msg err';
@@ -703,7 +703,7 @@
       const datum = document.getElementById('form-datum').value || dnes();
       zaznamy.push({ id: Date.now(), datum, typ: aktivniTyp, kategorieId: document.getElementById('form-kategorie').value, popis, castka });
       if (cerpatSporeni) {
-        zaznamy.push({ id: Date.now() + 1, datum: dnes(), typ: 'vydaj', kategorieId: 'sporeni', popis: `Čerpání: ${popis}`, castka });
+        zaznamy.push({ id: Date.now() + 1, datum: dnes(), typ: 'prijem', kategorieId: 'sporeni', popis: `Čerpání: ${popis}`, castka });
       }
       ulozZaznamy(zaznamy);
       document.getElementById('form-popis').value = '';
@@ -837,17 +837,17 @@
     }
 
     function renderSporeni() {
-      const zaznamy = nactiZaznamy().filter(z => z.kategorieId === 'sporeni' && z.typ === 'vydaj');
-      const celkem = zaznamy.reduce((s, z) => z.popis.startsWith('Čerpání:') ? s - z.castka : s + z.castka, 0);
+      const zaznamy = nactiZaznamy().filter(z => z.kategorieId === 'sporeni');
+      const celkem = zaznamy.reduce((s, z) => z.typ === 'vydaj' ? s + z.castka : s - z.castka, 0);
 
       const elD = document.getElementById('sporeni-celkem');
       if (elD) elD.textContent = formatKc(celkem);
       const elM = document.getElementById('mob-sporeni-celkem');
       if (elM) elM.textContent = formatKc(celkem);
 
-      // Měsíční součty (vklady kladně, čerpání záporně)
+      // Měsíční součty (vklady vydaj kladně, čerpání prijem záporně)
       const mesice = {};
-      zaznamy.forEach(z => { const m = z.datum.slice(0, 7); const delta = z.popis.startsWith('Čerpání:') ? -z.castka : z.castka; mesice[m] = (mesice[m] || 0) + delta; });
+      zaznamy.forEach(z => { const m = z.datum.slice(0, 7); const delta = z.typ === 'vydaj' ? z.castka : -z.castka; mesice[m] = (mesice[m] || 0) + delta; });
       const sorted = Object.keys(mesice).sort();
 
       // Kumulativní data pro graf
