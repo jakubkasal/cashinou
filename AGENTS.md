@@ -1,38 +1,95 @@
-# AGENTS.md – Práce s AI při vývoji CashinoU
+# AGENTS.md – CashinoU – Technická dokumentace pro AI asistenta
 
-## Použitý nástroj
-Claude (Anthropic) – konverzační AI asistent použitý jako pomocník při vývoji.
+## Přehled projektu
 
-## Jak byl AI použit
-Vývoj probíhal formou konverzace s AI. Já jsem definoval požadavky, navrhoval architekturu a rozhodoval o všech aspektech projektu. AI sloužil jako nástroj pro rychlejší implementaci mých nápadů – podobně jako programátor používá dokumentaci nebo Stack Overflow.
+CashinoU je osobní finanční tracker – Single Page Application (SPA) v čistém HTML/CSS/JavaScript bez frameworků.
 
-## Příklady promptů
+- **GitHub:** github.com/jakubkasal/cashinou
+- **Produkce:** cashinou.netlify.app
 
-Návrh projektu:
-> "Chci vytvořit osobní finanční tracker v Pythonu, který sleduje příjmy a výdaje podle kategorií a zobrazuje grafy."
+---
 
-Přechod na web:
-> "Zapomeňme na Python, chci to přepsat jako webovou aplikaci v HTML/CSS/JS, která půjde otevřít v prohlížeči a později nasadit jako PWA na mobil."
+## Struktura souborů
 
-Přidání funkce:
-> "Přidej možnost nastavit měsíční limit na kategorii a upozornění když ho překročím."
+- `index.html` – veškerá HTML struktura + celá JavaScript logika
+- `style.css` – všechny styly
 
-Debugging:
-> "Na mobilu sidebar překrývá obsah, jak to opravit?"
+Žádné buildovací nástroje, žádné závislosti přes npm. Vše běží přímo v prohlížeči.
 
-## Co jsem dělal já
-- Navrhl jsem celou strukturu a architekturu aplikace
-- Definoval jsem všechny funkce a požadavky
-- Rozhodoval jsem o designu a UX (dark mode, mobilní layout)
-- Průběžně testoval jsem aplikaci a identifikoval chyby
-- Nasadil jsem aplikaci na Netlify a spravoval GitHub repozitář
-- Vybral jsem technologie (Chart.js, localStorage, PWA)
-- Rozhodoval jsem o názvu, kategoriích a celkovém směřování projektu
+---
 
-## Co dělal AI
-- Pomáhal s implementací podle mých zadání
-- Překládal moje požadavky do kódu
-- Navrhoval možné způsoby řešení konkrétních problémů
+## Architektura
 
-## Závěr
-AI byl použit jako nástroj pro urychlení vývoje. Všechna klíčová rozhodnutí o funkčnosti, designu a směřování projektu byla moje – AI pouze pomáhal s technickou realizací.
+### Navigace
+- **Desktop:** postranní sidebar s tlačítky
+- **Mobil:** spodní navigation bar s 5 tlačítky (Přehled, Grafy, ➕Přidat, Platby, Více)
+- Přepínání stránek přes funkci `showPage()` – skrývá/zobrazuje `div` elementy
+
+### Ukládání dat
+Vše v `localStorage` prohlížeče. Žádný backend, žádná databáze.
+
+---
+
+## Datové struktury (localStorage)
+
+```js
+// Záznamy příjmů a výdajů
+zaznamy: [
+  { id, datum, typ, kategorieId, popis, castka, recuring? }
+]
+
+// Kategorie
+kategorie: [
+  { id, nazev, emoji, typ, default, limit }
+]
+
+// Opakující se platby
+opakujici: [
+  { id, typ, kategorieId, popis, castka, frekvence, datumPrvni, posledniPridani }
+]
+
+// Téma
+theme: "light" | "dark"
+```
+
+---
+
+## Hlavní funkce
+
+| Funkce | Popis |
+|--------|-------|
+| Přidávání záznamů | příjem/výdaj, kategorie, popis, částka, datum |
+| Přehled | filtrování podle měsíce, vyhledávání, filtr kategorie |
+| Grafy | Chart.js – koláčový, sloupcový, čárový |
+| Opakující se platby | nastaví se jednou, při každém spuštění se automaticky přidají splatné záznamy |
+| Kategorie | emoji ikonky + měsíční limity |
+| Export | CSV export |
+| Téma | dark/light mode |
+
+---
+
+## Klíčové technické detaily
+
+### `posunDatum(datum, mesice)`
+Vlastní funkce pro posunutí data o měsíce bez přetékání.
+- Příklad: 31. března + 1 měsíc = 30. dubna (ne 1. května)
+
+### `aplikujOpakujici()`
+- Volá se automaticky při každém spuštění aplikace
+- Prochází `opakujici` a přidává záznamy, které jsou splatné
+- Obsahuje ochranu proti duplikátům
+
+### PWA / Service Worker
+- Service Worker je aktivní, verze cache: `cashinou-v3`
+- Manifest se generuje dynamicky přes `Blob` a `URL.createObjectURL`
+- Podporuje offline provoz
+
+---
+
+## Konvence a tipy pro práci s kódem
+
+- Veškerá logika je v `index.html` – hledej funkce přímo tam
+- Při úpravě dat v localStorage vždy aktualizuj celé pole (`JSON.stringify`)
+- Kategorie mají `typ: "prijem" | "vydaj"` – hlídat při filtrování
+- `id` záznamů se generuje přes `Date.now()` nebo podobný timestamp
+- Grafy se překreslují při každém přepnutí na stránku Grafy
