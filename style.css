@@ -487,6 +487,27 @@
      color: var(--green)
  }
 
+ .cerpat-label {
+     display: flex;
+     align-items: center;
+     gap: 8px;
+     cursor: pointer;
+     font-size: 13px;
+     font-weight: 500;
+     color: var(--text);
+     text-transform: none;
+     letter-spacing: 0;
+     margin-bottom: 0;
+ }
+
+ .cerpat-label input[type="checkbox"] {
+     width: 16px;
+     height: 16px;
+     accent-color: var(--accent);
+     cursor: pointer;
+     flex-shrink: 0;
+ }
+
  .btn {
      width: 100%;
      padding: 13px;

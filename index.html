@@ -169,7 +169,10 @@
           <button class="type-btn active-expense" id="btn-vydaj" onclick="setTyp('vydaj')">− Výdaj</button>
           <button class="type-btn" id="btn-prijem" onclick="setTyp('prijem')">+ Příjem</button>
         </div>
-        <div class="form-group"><label>Kategorie</label><select id="form-kategorie"></select></div>
+        <div class="form-group"><label>Kategorie</label><select id="form-kategorie" onchange="updateCerpatToggle()"></select></div>
+        <div class="form-group" id="form-cerpat-group" style="display:none">
+          <label class="cerpat-label"><input type="checkbox" id="form-cerpat-sporeni"> Čerpat ze spoření</label>
+        </div>
         <div class="kat-inline-toggle"><button class="kat-inline-btn" onclick="toggleInlineKat()">＋ nová
             kategorie</button></div>
         <div class="kat-inline-panel" id="inline-kat-panel">
@@ -634,6 +637,15 @@
     }
     function renderFormKategorie() {
       document.getElementById('form-kategorie').innerHTML = nactiKategorie().filter(k => k.typ === aktivniTyp).map(k => `<option value="${k.id}">${k.emoji} ${k.nazev}</option>`).join('');
+      updateCerpatToggle();
+    }
+    function updateCerpatToggle() {
+      const group = document.getElementById('form-cerpat-group');
+      if (!group) return;
+      const katVybrana = document.getElementById('form-kategorie').value;
+      const zobrazit = aktivniTyp === 'vydaj' && katVybrana !== 'sporeni';
+      group.style.display = zobrazit ? '' : 'none';
+      if (!zobrazit) document.getElementById('form-cerpat-sporeni').checked = false;
     }
 
     let inlineEmoji = '📦';
@@ -676,11 +688,27 @@
       if (!popis || !castkaVal) { status.textContent = '⚠ Vyplň všechna pole.'; status.className = 'status-msg err'; return; }
       const castka = parseFloat(castkaVal);
       if (isNaN(castka) || castka <= 0) { status.textContent = '⚠ Neplatná částka.'; status.className = 'status-msg err'; return; }
+      const cerpatSporeni = document.getElementById('form-cerpat-sporeni')?.checked;
+      if (cerpatSporeni) {
+        const naspořeno = nactiZaznamy()
+          .filter(z => z.kategorieId === 'sporeni' && z.typ === 'vydaj')
+          .reduce((s, z) => z.popis.startsWith('Čerpání:') ? s - z.castka : s + z.castka, 0);
+        if (castka > naspořeno) {
+          status.textContent = `⚠ Nedostatek naspořených peněz. Máš naspořeno pouze ${formatKc(naspořeno)}.`;
+          status.className = 'status-msg err';
+          return;
+        }
+      }
       const zaznamy = nactiZaznamy();
-      zaznamy.push({ id: Date.now(), datum: document.getElementById('form-datum').value || dnes(), typ: aktivniTyp, kategorieId: document.getElementById('form-kategorie').value, popis, castka });
+      const datum = document.getElementById('form-datum').value || dnes();
+      zaznamy.push({ id: Date.now(), datum, typ: aktivniTyp, kategorieId: document.getElementById('form-kategorie').value, popis, castka });
+      if (cerpatSporeni) {
+        zaznamy.push({ id: Date.now() + 1, datum: dnes(), typ: 'vydaj', kategorieId: 'sporeni', popis: `Čerpání: ${popis}`, castka });
+      }
       ulozZaznamy(zaznamy);
       document.getElementById('form-popis').value = '';
       document.getElementById('form-castka').value = '';
+      if (cerpatSporeni) document.getElementById('form-cerpat-sporeni').checked = false;
       const isMobile = window.innerWidth <= 768;
       const navBtn = isMobile ? document.getElementById('bnav-prehled') : document.querySelector('.nav-btn');
       showPage('prehled', navBtn);
@@ -810,16 +838,16 @@
 
     function renderSporeni() {
       const zaznamy = nactiZaznamy().filter(z => z.kategorieId === 'sporeni' && z.typ === 'vydaj');
-      const celkem = zaznamy.reduce((s, z) => s + z.castka, 0);
+      const celkem = zaznamy.reduce((s, z) => z.popis.startsWith('Čerpání:') ? s - z.castka : s + z.castka, 0);
 
       const elD = document.getElementById('sporeni-celkem');
       if (elD) elD.textContent = formatKc(celkem);
       const elM = document.getElementById('mob-sporeni-celkem');
       if (elM) elM.textContent = formatKc(celkem);
 
-      // Měsíční součty
+      // Měsíční součty (vklady kladně, čerpání záporně)
       const mesice = {};
-      zaznamy.forEach(z => { const m = z.datum.slice(0, 7); mesice[m] = (mesice[m] || 0) + z.castka; });
+      zaznamy.forEach(z => { const m = z.datum.slice(0, 7); const delta = z.popis.startsWith('Čerpání:') ? -z.castka : z.castka; mesice[m] = (mesice[m] || 0) + delta; });
       const sorted = Object.keys(mesice).sort();
 
       // Kumulativní data pro graf
