@@ -308,21 +308,19 @@
  .record-del {
      background: none;
      border: none;
-     color: transparent;
+     color: var(--muted);
      cursor: pointer;
-     font-size: 14px;
-     padding: 4px;
+     font-size: 15px;
+     padding: 4px 6px;
      border-radius: 4px;
-     transition: all .1s
- }
-
- .record-item:hover .record-del {
-     color: var(--muted)
+     transition: all .1s;
+     opacity: .5
  }
 
  .record-del:hover {
-     color: var(--red) !important;
-     background: rgba(239, 68, 68, .1)
+     color: var(--accent);
+     background: rgba(99, 102, 241, .12);
+     opacity: 1
  }
 
  .empty-state {
