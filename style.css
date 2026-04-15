@@ -308,17 +308,15 @@
  .record-del {
      background: none;
      border: none;
-     color: var(--muted);
      cursor: pointer;
      font-size: 15px;
      padding: 4px 6px;
      border-radius: 4px;
-     transition: all .1s;
-     opacity: .5
+     transition: background .1s, opacity .1s;
+     opacity: .75
  }
 
  .record-del:hover {
-     color: var(--accent);
      background: rgba(99, 102, 241, .12);
      opacity: 1
  }
