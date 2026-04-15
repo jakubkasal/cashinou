@@ -60,6 +60,7 @@
     <button class="nav-btn" onclick="showPage('opakujici',this)"><span class="icon">🔁</span><span>Opakující
         se</span></button>
     <button class="nav-btn" onclick="showPage('grafy',this)"><span class="icon">📈</span><span>Grafy</span></button>
+    <button class="nav-btn" onclick="showPage('sporeni',this)"><span class="icon">🐷</span><span>Spoření</span></button>
     <button class="nav-btn" onclick="showPage('kategorie',this)"><span
         class="icon">🏷️</span><span>Kategorie</span></button>
     <button class="nav-btn" onclick="showPage('nastroje',this)"><span
@@ -76,6 +77,8 @@
         class="icon">📊</span><span>Přehled</span></button>
     <button class="bottom-nav-btn" id="bnav-grafy" onclick="showPage('grafy',this)"><span
         class="icon">📈</span><span>Grafy</span></button>
+    <button class="bottom-nav-btn" id="bnav-sporeni" onclick="showPage('sporeni',this)"><span
+        class="icon">🐷</span><span>Spoření</span></button>
     <button class="bottom-nav-btn add-btn" id="bnav-pridat" onclick="showPage('pridat',this)">
       <div class="icon-wrap">＋</div><span>Přidat</span>
     </button>
@@ -251,6 +254,38 @@
       </div>
     </div>
 
+    <!-- SPOŘENÍ -->
+    <div id="page-sporeni" class="page">
+      <div class="mobile-only">
+        <div class="mobile-hero">
+          <div class="mobile-hero-label">Celkem naspořeno</div>
+          <div class="mobile-hero-value green" id="mob-sporeni-celkem">0 Kč</div>
+        </div>
+        <div class="mobile-chart-card">
+          <div class="mobile-chart-title">Vývoj spoření v čase</div>
+          <canvas id="mob-chart-sporeni"></canvas>
+        </div>
+        <div class="section-title" style="margin-bottom:12px">Měsíční přehled</div>
+        <div id="mob-sporeni-mesice"></div>
+      </div>
+      <div class="desktop-only">
+        <h1>Spoření</h1>
+        <p class="page-subtitle">Sleduj jak roste tvoje spoření v čase</p>
+        <div class="cards" style="max-width:340px;margin-bottom:24px">
+          <div class="card">
+            <div class="card-label">Celkem naspořeno</div>
+            <div class="card-value green" id="sporeni-celkem">0 Kč</div>
+          </div>
+        </div>
+        <div class="chart-card" style="margin-bottom:24px">
+          <div class="chart-title">Vývoj spoření v čase (kumulativně)</div>
+          <canvas id="chart-sporeni"></canvas>
+        </div>
+        <div class="section-title" style="margin-bottom:12px">Měsíční přehled</div>
+        <div id="sporeni-mesice"></div>
+      </div>
+    </div>
+
     <!-- KATEGORIE -->
     <div id="page-kategorie" class="page">
       <h1>Kategorie</h1>
@@ -297,6 +332,9 @@
       <h1>Více</h1>
       <p class="page-subtitle">Nastavení a správa</p>
       <div style="display:flex;flex-direction:column;gap:10px;max-width:400px">
+        <button class="btn btn-secondary" style="margin-top:0;text-align:left;display:flex;align-items:center;gap:12px"
+          onclick="showPage('sporeni',document.getElementById('bnav-vice'))"><span
+            style="font-size:20px">🐷</span><span>Spoření</span></button>
         <button class="btn btn-secondary" style="margin-top:0;text-align:left;display:flex;align-items:center;gap:12px"
           onclick="showPage('kategorie',document.getElementById('bnav-vice'))"><span
             style="font-size:20px">🏷️</span><span>Kategorie</span></button>
@@ -397,6 +435,7 @@
       if (page === 'pridat') { initFormDatum(); renderFormKategorie(); }
       if (page === 'opakujici') { renderOpakujici(); renderRecKategorie(); }
       if (page === 'grafy') { buildMesiceTabs('grafy'); renderGrafy(); }
+      if (page === 'sporeni') renderSporeni();
       if (page === 'kategorie') renderKategorie();
     }
 
@@ -767,6 +806,58 @@
         data: { labels: sorted.map(m => formatMesic(m)), datasets: [{ label: 'Bilance', data: sorted.map(m => ms[m].p - ms[m].v), borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,.1)', fill: true, tension: .4, pointBackgroundColor: '#6366f1', pointRadius: 4 }] },
         options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: mc(), font: { family: 'DM Sans' } }, grid: { color: gc() } }, y: { ticks: { color: mc(), font: { family: 'DM Sans' }, callback: v => v.toLocaleString('cs') + ' Kč' }, grid: { color: gc() } } } }
       });
+    }
+
+    function renderSporeni() {
+      const zaznamy = nactiZaznamy().filter(z => z.kategorieId === 'sporeni' && z.typ === 'vydaj');
+      const celkem = zaznamy.reduce((s, z) => s + z.castka, 0);
+
+      const elD = document.getElementById('sporeni-celkem');
+      if (elD) elD.textContent = formatKc(celkem);
+      const elM = document.getElementById('mob-sporeni-celkem');
+      if (elM) elM.textContent = formatKc(celkem);
+
+      // Měsíční součty
+      const mesice = {};
+      zaznamy.forEach(z => { const m = z.datum.slice(0, 7); mesice[m] = (mesice[m] || 0) + z.castka; });
+      const sorted = Object.keys(mesice).sort();
+
+      // Kumulativní data pro graf
+      let kumul = 0;
+      const kumulData = sorted.map(m => { kumul += mesice[m]; return kumul; });
+
+      const mc = () => getColor('--muted'), gc = () => getColor('--border');
+      ['chart-sporeni', 'mob-chart-sporeni'].forEach(id => {
+        const canvas = document.getElementById(id);
+        if (!canvas) return;
+        if (charts[id]) { try { charts[id].destroy(); } catch { } }
+        if (sorted.length === 0) { canvas.style.display = 'none'; return; }
+        canvas.style.display = '';
+        charts[id] = new Chart(canvas, {
+          type: 'line',
+          data: {
+            labels: sorted.map(m => formatMesic(m)),
+            datasets: [{ label: 'Naspořeno celkem', data: kumulData, borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,.1)', fill: true, tension: .4, pointBackgroundColor: '#22c55e', pointRadius: 4 }]
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: mc(), font: { family: 'DM Sans' } }, grid: { color: gc() } },
+              y: { ticks: { color: mc(), font: { family: 'DM Sans' }, callback: v => v.toLocaleString('cs') + ' Kč' }, grid: { color: gc() }, beginAtZero: true }
+            }
+          }
+        });
+      });
+
+      // Měsíční seznam (nejnovější první)
+      const prazdny = `<div style="color:var(--muted);padding:24px 0;text-align:center">Žádné záznamy. Přidej záznam s kategorií Spoření.</div>`;
+      const html = sorted.length
+        ? [...sorted].reverse().map(m => `<div class="card" style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;padding:16px 20px"><span style="color:var(--text);font-size:15px">${formatMesic(m)}</span><span class="card-value green" style="font-size:18px">${formatKc(mesice[m])}</span></div>`).join('')
+        : prazdny;
+      const listD = document.getElementById('sporeni-mesice');
+      if (listD) listD.innerHTML = html;
+      const listM = document.getElementById('mob-sporeni-mesice');
+      if (listM) listM.innerHTML = html;
     }
 
     let aktivniKatTyp = 'vydaj', vybranýEmoji = '📦';
