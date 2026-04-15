@@ -685,7 +685,7 @@
       const popis = document.getElementById('form-popis').value.trim();
       const castkaVal = document.getElementById('form-castka').value;
       const status = document.getElementById('form-status');
-      if (!popis || !castkaVal) { status.textContent = '⚠ Vyplň všechna pole.'; status.className = 'status-msg err'; return; }
+      if (!castkaVal) { status.textContent = '⚠ Vyplň částku.'; status.className = 'status-msg err'; return; }
       const castka = parseFloat(castkaVal);
       if (isNaN(castka) || castka <= 0) { status.textContent = '⚠ Neplatná částka.'; status.className = 'status-msg err'; return; }
       const cerpatSporeni = document.getElementById('form-cerpat-sporeni')?.checked;
