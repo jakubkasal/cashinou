@@ -306,19 +306,19 @@
  }
 
  .record-del {
-     background: none;
-     border: none;
+     background: var(--surface2);
+     border: 1px solid var(--border);
      cursor: pointer;
-     font-size: 15px;
-     padding: 4px 6px;
-     border-radius: 4px;
-     transition: background .1s, opacity .1s;
-     opacity: .75
+     font-size: 14px;
+     padding: 3px 8px;
+     border-radius: 6px;
+     transition: background .15s, border-color .15s;
+     line-height: 1.4
  }
 
  .record-del:hover {
-     background: rgba(99, 102, 241, .12);
-     opacity: 1
+     background: rgba(99, 102, 241, .15);
+     border-color: var(--accent)
  }
 
  .empty-state {
