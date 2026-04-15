@@ -488,7 +488,7 @@
       const katFilter = document.getElementById('filter-kat')?.value || '';
       if (q) zaznamy = zaznamy.filter(z => z.popis.toLowerCase().includes(q) || z.kategorieId.includes(q));
       if (katFilter) zaznamy = zaznamy.filter(z => z.kategorieId === katFilter);
-      const prijmy = zaznamy.filter(z => z.typ === 'prijem').reduce((s, z) => s + z.castka, 0);
+      const prijmy = zaznamy.filter(z => z.typ === 'prijem' && !z.cerpani).reduce((s, z) => s + z.castka, 0);
       const vydaje = zaznamy.filter(z => z.typ === 'vydaj').reduce((s, z) => s + z.castka, 0);
       const bilance = prijmy - vydaje;
       const ps = document.getElementById('prehled-subtitle');
@@ -530,7 +530,7 @@
       if (q) zaznamy = zaznamy.filter(z => z.popis.toLowerCase().includes(q) || z.kategorieId.includes(q));
       if (katFilter) zaznamy = zaznamy.filter(z => z.kategorieId === katFilter);
 
-      const prijmy = zaznamy.filter(z => z.typ === 'prijem').reduce((s, z) => s + z.castka, 0);
+      const prijmy = zaznamy.filter(z => z.typ === 'prijem' && !z.cerpani).reduce((s, z) => s + z.castka, 0);
       const vydaje = zaznamy.filter(z => z.typ === 'vydaj').reduce((s, z) => s + z.castka, 0);
       const bilance = prijmy - vydaje;
       const mobBil = document.getElementById('mob-bilance');
@@ -703,7 +703,7 @@
       const datum = document.getElementById('form-datum').value || dnes();
       zaznamy.push({ id: Date.now(), datum, typ: aktivniTyp, kategorieId: document.getElementById('form-kategorie').value, popis, castka });
       if (cerpatSporeni) {
-        zaznamy.push({ id: Date.now() + 1, datum: dnes(), typ: 'prijem', kategorieId: 'sporeni', popis: `Čerpání: ${popis}`, castka });
+        zaznamy.push({ id: Date.now() + 1, datum: dnes(), typ: 'prijem', kategorieId: 'sporeni', popis: `Čerpání: ${popis}`, castka, cerpani: true });
       }
       ulozZaznamy(zaznamy);
       document.getElementById('form-popis').value = '';
@@ -820,14 +820,14 @@
         data: { labels: Object.keys(soucty).map(id => { const k = kategorie.find(k => k.id === id); return k ? `${k.emoji} ${k.nazev}` : id; }), datasets: [{ data: Object.values(soucty), backgroundColor: colors, borderWidth: 0 }] },
         options: { plugins: { legend: { labels: { color: tc(), font: { family: 'DM Sans' } } } }, cutout: '55%' }
       });
-      const celkemP = zaznamy.filter(z => z.typ === 'prijem').reduce((s, z) => s + z.castka, 0);
+      const celkemP = zaznamy.filter(z => z.typ === 'prijem' && !z.cerpani).reduce((s, z) => s + z.castka, 0);
       const celkemV = vydaje.reduce((s, z) => s + z.castka, 0);
       charts.bar = new Chart(document.getElementById('chart-bar'), {
         type: 'bar',
         data: { labels: ['Příjmy', 'Výdaje'], datasets: [{ data: [celkemP, celkemV], backgroundColor: ['#22c55e', '#ef4444'], borderRadius: 8, borderSkipped: false }] },
         options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: mc(), font: { family: 'DM Sans' } }, grid: { color: gc() } }, y: { ticks: { color: mc(), font: { family: 'DM Sans' }, callback: v => v.toLocaleString('cs') + ' Kč' }, grid: { color: gc() } } } }
       });
-      const ms = {}; nactiZaznamy().forEach(z => { const m = z.datum.slice(0, 7); if (!ms[m]) ms[m] = { p: 0, v: 0 }; z.typ === 'prijem' ? ms[m].p += z.castka : ms[m].v += z.castka; });
+      const ms = {}; nactiZaznamy().forEach(z => { if (z.cerpani) return; const m = z.datum.slice(0, 7); if (!ms[m]) ms[m] = { p: 0, v: 0 }; z.typ === 'prijem' ? ms[m].p += z.castka : ms[m].v += z.castka; });
       const sorted = Object.keys(ms).sort();
       charts.line = new Chart(document.getElementById('chart-line'), {
         type: 'line',
@@ -1049,6 +1049,19 @@
       updateBadge();
       setTimeout(() => { status.textContent = ''; renderOpakujici(); }, 1000);
     }
+
+    // MIGRACE: oprav stará čerpání bez příznaku cerpani:true
+    (function migrujCerpani() {
+      const zaznamy = nactiZaznamy();
+      let zmeneno = false;
+      zaznamy.forEach(z => {
+        if (z.kategorieId === 'sporeni' && z.popis && z.popis.startsWith('Čerpání:')) {
+          if (z.typ !== 'prijem') { z.typ = 'prijem'; zmeneno = true; }
+          if (!z.cerpani) { z.cerpani = true; zmeneno = true; }
+        }
+      });
+      if (zmeneno) ulozZaznamy(zaznamy);
+    })();
 
     // INIT
     if (localStorage.getItem('theme') === 'light') {
